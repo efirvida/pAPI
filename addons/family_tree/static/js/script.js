@@ -1,4 +1,4 @@
-import diffArrays, { updatedValues } from '/static/family_tree/js/diff-arrays.js';
+import diffArrays, { updatedValues } from '/family_tree/js/diff-arrays.js';
 
 let lastTreeState = null;
 var f3Chart = null;
