@@ -1,0 +1,7 @@
+name: "Odoo XML/RPC"
+version: "1.0"
+author: "efirvida"
+description: "expose odoo data to API using XML/RPC"
+license: "AGPL-3"
+depends:
+ - users

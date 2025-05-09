@@ -1,0 +1,36 @@
+[project]
+name = "papi"
+version = "0.1.0"
+description = "pAPI – Python/Pluggable API Framework \n **pAPI** (short for **Python API** or **Pluggable API**) is a modular micro-framework built on top of [FastAPI](https://fastapi.tiangolo.com/), designed to simplify the creation of composable and interoperable web APIs. \n It extends FastAPI’s routing system to enable advanced features such as exposing HTTP endpoints as MCP tools, making it a powerful choice for agent-based applications, modular services, and programmable API ecosystems."
+
+authors = [
+    { name = "Eduardo Firvida", email = "efirvida@gmail.com" }
+]
+
+dependencies = [
+    "beanie>=1.29.0",
+    "dotenv>=0.9.9",
+    "fastapi>=0.115.12",
+    "fastmcp>=2.3.0",
+    "loguru>=0.7.3",
+    "pyyaml>=6.0.2",
+    "uvicorn>=0.34.2",
+]
+readme = "README.md"
+requires-python = ">= 3.13"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "ruff>=0.11.6",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/papi"]
