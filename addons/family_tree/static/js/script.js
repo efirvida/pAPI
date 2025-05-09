@@ -93,12 +93,19 @@ fetch("/api/v2/family-tree/")
             if (!f3EditTree.isAddingRelative()) {
                 f3Chart.store.updateMainId(d.data.id);
                 f3Card.onCardClickDefault(e, d);
+                localStorage.setItem("mainId", d.data.id);
             }
         });
+
+        const savedMainId = localStorage.getItem("mainId");
+        if (savedMainId) {
+            f3Chart.store.updateMainId(savedMainId);
+        }
 
         f3Chart.updateTree({ initial: true });
         f3EditTree.open(f3Chart.getMainDatum());
         f3EditTree.setOnChange(() => storeData(f3EditTree));
+
     })
     .catch(error => {
         console.error("Error cargando datos:", error);
