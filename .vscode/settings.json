@@ -1,0 +1,19 @@
+{
+    "python.languageServer": "Pylance",
+    "[python]": {
+        "editor.formatOnType": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit",
+        }
+    },
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/extra_addons"
+    ],
+    "chat.mcp.enabled": true,
+    "chat.mcp.discovery.enabled": true,
+    "chat.agent.enabled": true
+}

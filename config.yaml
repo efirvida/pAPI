@@ -1,0 +1,22 @@
+logger:
+  level: "DEBUG"
+  log_file: ./papi.log
+
+info:
+  title: "Testing API Server"
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+
+database:
+  mongodb_uri: "mongodb://root:example@localhost:27017/addons_db?authSource=admin"
+
+addons:
+  extra_addons_path: "./addons"
+  enabled:
+    - family_tree
+
+
+storage:
+  files_folder: "./data/folder"
