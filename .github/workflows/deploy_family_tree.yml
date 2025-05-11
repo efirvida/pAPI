@@ -1,0 +1,53 @@
+name: Deploy FamilyTree to Remote Server
+
+on:
+  push:
+    branches:
+      - FamilyTree
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add SSH known hosts
+        run: ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        run: |
+          ssh -t ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+            bash -i -c "
+              # Cargar variables de entorno correctamente (incluyendo Rye)
+              source ~/.bashrc
+              source ~/.profile
+      
+              # Verificar Node.js (NVM)
+              node -v
+      
+              # Reconstruir el proyecto
+              cd ~/family_tree/
+              rm -rf pAPI
+              git clone -b FamilyTree https://github.com/efirvida/pAPI.git
+              cp -f config.yaml pAPI/config.yaml
+      
+              # Instalar dependencias del frontend
+              cd pAPI/addons/family_tree/static/libs/family-chart
+              npm install
+              npm run build
+      
+              # Sincronizar dependencias de Python con Rye
+              cd ~/family_tree/pAPI
+              ~/.rye/shims/rye sync  # Ruta absoluta a rye
+      
+              # Reiniciar el servidor
+              cd ~/family_tree
+              ./runserver
+            "
+          '
