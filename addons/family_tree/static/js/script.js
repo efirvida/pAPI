@@ -3,8 +3,16 @@ import diffArrays, { updatedValues } from '/family_tree/libs/diff-arrays.js';
 let lastTreeState = null;
 var f3Chart = null;
 
+function uuidv4() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.random() * 16 | 0,
+            v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 const initialData = [{
-    "id": crypto.randomUUID(),
+    "id": uuidv4(),
     "data": {
         "name": "Root Node",
     },
