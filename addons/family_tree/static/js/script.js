@@ -1,4 +1,4 @@
-import diffArrays, { updatedValues } from '/family_tree/js/diff-arrays.js';
+import diffArrays, { updatedValues } from '/family_tree/libs/diff-arrays.js';
 
 let lastTreeState = null;
 var f3Chart = null;
@@ -86,7 +86,10 @@ fetch("/api/v2/family-tree/")
             .setOnHoverPathToMain();
 
         const f3EditTree = f3Chart.editTree()
-            .setFields(["name", "avatar", {}]);
+            .setFields([
+                { id: "avatar", type: "image", label: "avatar" },
+                { id: "name", type: "text", label: "name" },
+            ]);
 
         f3Card.setOnCardClick((e, d) => {
             f3EditTree.open(d);

@@ -1,5 +1,4 @@
-import _ from 'https://esm.sh/lodash-es';
-import deepDiff from 'https://esm.sh/deep-diff@1.0.2';
+import deepDiff from '/family_tree/libs/deep-diff.mjs';
 
 const updatedValues = {
     simple: 1,

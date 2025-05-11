@@ -13,15 +13,16 @@ async def family_tree_home_website():
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-            <title>my-family-chart</title>
-            <script src="/family_tree/js/d3.min.js"></script>
-            <script type="module" src="/family_tree/js/family-chart.min.js"></script>
-            <link rel="stylesheet" href="/family_tree/css/family-chart.css">
+            <title>My Family Tree</title>
+            <link rel="stylesheet" href="/family_tree/libs/family-chart/dist/styles/family-chart.css">
             <link rel="stylesheet" href="/family_tree/css/style.css">
         </head>
         <body>
           <div id="FamilyChart" class="f3"></div>
         </body>
+        <script src="/family_tree/libs/d3.min.js"></script>
+        <script type="module" src="/family_tree/libs/family-chart/dist/family-chart.js"></script>
+        <script type="module" src="/family_tree/libs/lodash.min.js"></script>
         <script type="module" src="/family_tree/js/script.js"></script>
     </html>
     """
