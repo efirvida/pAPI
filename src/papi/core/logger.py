@@ -82,6 +82,8 @@ def setup_logging() -> None:
                 else "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level} | {extra[logger_name]}:{function}:{line} - {message}"
             ),
         })
-
-    logger.configure(handlers=handlers)
+    logger.configure(
+        handlers=handlers,
+        extra={"logger_name": "pAPI"},
+    )
     logger.info("Logging initialized.")
