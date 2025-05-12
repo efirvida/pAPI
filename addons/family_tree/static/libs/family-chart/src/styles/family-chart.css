@@ -110,6 +110,8 @@
 
 /* form-info */
 .f3-form input[type="text"],
+.f3-form input[type="date"],
+.f3-form input[type="datetime-local"],
 .f3-form textarea,
 .f3-form select {
   width: 100%;
@@ -123,7 +125,7 @@
   color: currentColor;
 }
 
-.f3-form input[type="text"]:focus,
+.f3-form input:focus,
 .f3-form textarea:focus,
 .f3-form select:focus {
   box-shadow: 0 0 5px rgba(76, 175, 80, 0.2);

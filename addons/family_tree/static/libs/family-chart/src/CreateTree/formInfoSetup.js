@@ -139,7 +139,7 @@ function getHtml(form_creator) {
   function fields() {
     if (!form_creator.editable) return infoField()
     return form_creator.fields.map(field => (`
-      ${field.type === 'text' ? `
+      ${field.type === 'text' || field.type === 'date' || field.type.startsWith('datetime') ? `
         <div class="f3-form-field">
           <label>${field.label}</label>
           <input type="${field.type}" 
