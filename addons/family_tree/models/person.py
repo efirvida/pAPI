@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import List, Optional, Union
 from uuid import uuid4
@@ -31,7 +31,10 @@ class PersonalData(BaseModel):
     name: Optional[str] = None
     avatar: Optional[str] = None
     gender: Optional[GenderEnum] = Field(GenderEnum.MALE, description="Person's gender")
-
+    birth_date: Optional[date] = Field(
+        None, description="Date of birth in YYYY-MM-DD format"
+    )
+    description: Optional[str] = None
 
     class Config:
         populate_by_name = True
