@@ -10,8 +10,14 @@ AllowedExtraTypes = Union[str, bool, datetime]
 
 
 class GenderEnum(str, Enum):
-    male = "M"
-    female = "F"
+    MALE = "M"
+    FEMALE = "F"
+
+    @classmethod
+    def get_options(cls):
+        return [
+            {"value": member.value, "label": member.name.capitalize()} for member in cls
+        ]
 
 
 class Relations(BaseModel):
@@ -24,7 +30,8 @@ class Relations(BaseModel):
 class PersonalData(BaseModel):
     name: Optional[str] = None
     avatar: Optional[str] = None
-    gender: Optional[GenderEnum] = "M"
+    gender: Optional[GenderEnum] = Field(GenderEnum.MALE, description="Person's gender")
+
 
     class Config:
         populate_by_name = True

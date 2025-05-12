@@ -1,13 +1,21 @@
 from typing import Annotated, List
 
 from beanie import operators
-from family_tree.models.person import PersonDocument
+from family_tree.models.person import PersonalData, PersonDocument
 from fastapi import Body
 from pydantic import UUID4
 
 from papi import pAPIRouter
 
+from .utils import model_to_form_schema
+
 router = pAPIRouter(prefix="/api/v2/family-tree", tags=["Family Tree"])
+
+
+@router.get("/schema")
+async def get_form_schema():
+    """Get Person edit form schema to dinamically build the form"""
+    return model_to_form_schema(PersonalData)
 
 
 @router.get("/", expose_as_mcp_tool=True)
