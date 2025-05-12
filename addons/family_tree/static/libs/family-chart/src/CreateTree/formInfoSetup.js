@@ -209,7 +209,7 @@ function getHtml(form_creator) {
                           </div>
                       </div>
                   </div>`;
-          } else {
+          } else if (value.length > 0) {
             return `
                   <div class="f3-info-field">
                     <span class="f3-info-field-label">${field.label}</span>
