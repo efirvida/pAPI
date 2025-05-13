@@ -1,6 +1,0 @@
-name: "Family Tree"
-version: "1.0"
-author: "efirvida"
-description: "A Family Tree module"
-depends:
- - users
