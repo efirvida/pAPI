@@ -12,7 +12,9 @@ dependencies = [
     "dotenv>=0.9.9",
     "fastapi>=0.115.12",
     "fastmcp>=2.3.0",
+    "filetype>=1.2.0",
     "loguru>=0.7.3",
+    "pillow>=11.2.1",
     "pyyaml>=6.0.2",
     "uvicorn>=0.34.2",
 ]

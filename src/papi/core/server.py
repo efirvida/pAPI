@@ -116,17 +116,14 @@ async def startup_server(app: FastAPI):
         )
 
     # Setup global file storage
-    if server_config.storage.files_folder:
-        os.makedirs(server_config.storage.files_folder, exist_ok=True)
+    for name, path in server_config.storage.dict().items():
+        os.makedirs(path, exist_ok=True)
         app.mount(
-            "/storage",
-            StaticFiles(directory=server_config.storage.files_folder),
-            name="Global Storage",
+            f"/{name}",
+            StaticFiles(directory=path),
+            name=f"Global {name} Storage",
         )
-        logger.info(
-            "Initializing global file storage folder in %s ",
-            server_config.storage.files_folder,
-        )
+        logger.info(f"Initializing global '{name}' storage folder in: '{path}'")
 
     yield
 

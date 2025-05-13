@@ -1,5 +1,5 @@
 logger:
-  level: "DEBUG"
+  level: "INFO"
   log_file: ./papi.log
 
 info:
@@ -19,4 +19,5 @@ addons:
 
 
 storage:
-  files_folder: "./data/folder"
+  files: "./data/folder"
+  images: "./data/images"

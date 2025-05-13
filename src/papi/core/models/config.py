@@ -1,11 +1,15 @@
 from enum import StrEnum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Extra, Field, field_validator
 
 
 class StorageConfig(BaseModel):
-    files_folder: Optional[str] = ""
+    files: Optional[str] = ""
+    images: Optional[str] = ""
+
+    class Config:
+        extra = Extra.allow
 
 
 class ServerConfig(BaseModel):
