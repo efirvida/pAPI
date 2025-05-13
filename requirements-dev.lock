@@ -36,6 +36,8 @@ fastapi==0.115.12
     # via papi
 fastmcp==2.3.0
     # via papi
+filetype==1.2.0
+    # via papi
 h11==0.14.0
     # via httpcore
     # via uvicorn
@@ -63,6 +65,8 @@ motor==3.6.1
     # via beanie
 openapi-pydantic==0.5.1
     # via fastmcp
+pillow==11.2.1
+    # via papi
 pydantic==2.10.6
     # via beanie
     # via fastapi
