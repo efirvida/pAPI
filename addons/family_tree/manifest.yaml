@@ -4,3 +4,4 @@ author: "efirvida"
 description: "A Family Tree module"
 depends:
  - users
+ - image_storage
