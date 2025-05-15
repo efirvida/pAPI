@@ -52,6 +52,9 @@ class AddonsConfig(BaseModel):
 class GeneralInfoConfig(BaseModel):
     title: Optional[str] = "pAPI Platform"
 
+    class Config:
+        extra = Extra.allow
+
 
 class LoggerLevel(StrEnum):
     INFO = "INFO"

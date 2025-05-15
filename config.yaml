@@ -1,9 +1,11 @@
 logger:
-  level: "INFO"
+  level: "DEBUG"
   log_file: ./papi.log
 
 info:
   title: "Testing API Server"
+  version: "1.0.0"
+  description: "This is a test API server for testing purposes."
 
 server:
   host: "127.0.0.1"
@@ -13,11 +15,11 @@ database:
   mongodb_uri: "mongodb://root:example@localhost:27017/addons_db?authSource=admin"
 
 addons:
-  extra_addons_path: "./addons"
+  extra_addons_path: "/home/efirvida/Desktop/dev/pAPI/addons"
   enabled:
     - image_storage
 
 
 storage:
-  files: "./data/folder"
-  images: "./data/images"
+  files: "/home/efirvida/Desktop/dev/pAPI/folder"
+  images: "/home/efirvida/Desktop/dev/pAPI/images"

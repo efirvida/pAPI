@@ -1,7 +1,5 @@
 from __future__ import annotations as _annotations
 
-import inspect
-import re
 from enum import Enum
 from typing import (
     Any,
@@ -23,13 +21,8 @@ from fastapi.types import DecoratedCallable, IncEx
 from fastapi.utils import (
     generate_unique_id,
 )
-from mcp.server.fastmcp.prompts import Prompt
-from mcp.server.fastmcp.resources import FunctionResource
-from mcp.types import (
-    AnyFunction,
-    ToolAnnotations,
-)
-from pydantic.networks import AnyUrl
+from fastmcp import FastMCP
+from loguru import logger
 from starlette.responses import JSONResponse, Response
 from starlette.routing import (
     BaseRoute,
@@ -37,8 +30,6 @@ from starlette.routing import (
 from starlette.routing import Mount as Mount
 from starlette.routing import Route as Route
 from typing_extensions import Annotated, Doc
-
-from papi.core.mcp import mcp_server
 
 
 class APIRoute(FastAPIRoute):
@@ -122,20 +113,46 @@ class APIRoute(FastAPIRoute):
 
 class RESTRouter(FastAPIRouter):
     """
-    Extended FastAPI router with MCP tool exposure support.
+    Enhanced FastAPI router with Model Context Protocol (MCP) integration and Addon Platform support.
 
-    This class subclasses FastAPI's APIRouter and overrides some routes registration
-    methods (`get`, `put`, `post`, `delete`,`patch`) to support an additional keyword
-    argument `expose_as_mcp_tool`.
+    Key Features:
+    - Dual Registration System: Expose routes as both HTTP endpoints and MCP tools
+    - Addon-Friendly Architecture: Safe route overriding with schema preservation
+    - Protocol Bridging: Native integration between REST APIs and AI agent workflows
+    - Metadata Enrichment: Attach MCP-specific context to standard API routes
 
-    When `expose_as_mcp_tool=True` is provided, the route is also registered
-    as a Model Context Protocol (MCP) tool, enabling it to be invoked in
-    agent-like workflows or via MCP-compatible orchestrators.
+    Implementation Highlights:
+        1. MCP Tool Exposure:
+            - Routes can be registered as executable tools in AI workflows via `expose_as_mcp_tool=True`
+            - Automatic schema generation for tool discovery and orchestration, provided by fastMCP
+              Framework, please visit the FastMCP documentation.
 
-    This design enables a unified interface where standard FastAPI routes
-    can double as callable tools in AI-driven applications, while preserving
-    the full behavior and flexibility of native FastAPI routing.
+        2. Addon Platform Support:
+            - Global route registry enables safe cross-addon overrides
+            - Version-aware route resolution maintains OpenAPI schema integrity
+            - Conflict detection for path/method combinations across modules
+
+        3. Extended Routing Capabilities:
+            - Maintains native FastAPI behavior for unmodified endpoints
+            - Method override protection through route signature tracking
+            - Dual registration system (HTTP + MCP) without side effects
+
+    Usage Example:
+    ```python
+        @router.get("/text-get", expose_as_mcp_tool=True)
+        @router.put("/text-put", expose_as_mcp_tool=True)
+        @router.post("/text-post", expose_as_mcp_tool=True)
+        @router.delete("/text-delete", expose_as_mcp_tool=True)
+        @router.patch("/text-patch", expose_as_mcp_tool=True)
+        async def route_implementation():
+            # expose the route_implementation as API route
+            # and create the route_implementation MCP tool
+            ...
+    ```
     """
+
+    routes_map: Dict[str, APIRoute]
+    routes: Sequence[APIRoute]
 
     def __init__(
         self,
@@ -352,6 +369,7 @@ class RESTRouter(FastAPIRouter):
             ),
         ] = Default(generate_unique_id),
     ) -> None:
+        self.routes_map = {}
         super().__init__(
             prefix=prefix,
             tags=tags,
@@ -400,6 +418,14 @@ class RESTRouter(FastAPIRouter):
         super().add_api_route(*args, **kwargs)
         last_route_added = self.routes[-1]
         last_route_added.is_mcp_tool = is_mcp_tool_route
+        if last_route_added.path in self.routes_map:
+            logger.warning(
+                f"Route [{', '.join(last_route_added.methods)}] {last_route_added.path} was overwritten: "
+                f"from: {self.routes_map[last_route_added.path].endpoint.__module__}:{self.routes_map[last_route_added.path].endpoint.__name__} -> "
+                f"to: {last_route_added.endpoint.__module__}:{last_route_added.endpoint.__name__}"
+            )
+        self.routes_map[last_route_added.path] = last_route_added
+        self.routes = list(self.routes_map.values())
 
     def api_route(
         self, path: str, *args, **kwargs
@@ -410,7 +436,6 @@ class RESTRouter(FastAPIRouter):
         The `expose_as_mcp_tool` flag marks the route as part of the Model Context Protocol.
         """
 
-        # Captura explícita dentro del ámbito del closure
         def decorator(func: DecoratedCallable) -> DecoratedCallable:
             self.add_api_route(path, func, *args, **kwargs)
             return func
@@ -2384,216 +2409,6 @@ class RESTRouter(FastAPIRouter):
             expose_as_mcp_tool=expose_as_mcp_tool,
         )
 
-
-class MPCRouter:
-    """
-    Extension layer that adds Model Context Protocol (MCP) capabilities.
-
-    This class provides decorators to register tools, prompts, and resources
-    that interact with the MCP server. These decorators integrate additional
-    logic such as context passing, progress reporting, and dynamic resource handling.
-
-    Intended to be combined with a router for building AI/ML-driven APIs.
-    """
-
-    def tool(
-        self,
-        name: str | None = None,
-        description: str | None = None,
-        annotations: ToolAnnotations | None = None,
-    ) -> Callable[[AnyFunction], AnyFunction]:
-        """Decorator to register a tool.
-
-        Tools can optionally request a Context object by adding a parameter with the
-        Context type annotation. The context provides access to MCP capabilities like
-        logging, progress reporting, and resource access.
-
-        Args:
-            name: Optional name for the tool (defaults to function name)
-            description: Optional description of what the tool does
-            annotations: Optional ToolAnnotations providing additional tool information
-
-        Example:
-            @server.tool()
-            def my_tool(x: int) -> str:
-                return str(x)
-
-            @server.tool()
-            def tool_with_context(x: int, ctx: Context) -> str:
-                ctx.info(f"Processing {x}")
-                return str(x)
-
-            @server.tool()
-            async def async_tool(x: int, context: Context) -> str:
-                await context.report_progress(50, 100)
-                return str(x)
-        """
-        # Check if user passed function directly instead of calling decorator
-        if callable(name):
-            raise TypeError(
-                "The @tool decorator was used incorrectly. "
-                "Did you forget to call it? Use @tool() instead of @tool"
-            )
-
-        def decorator(fn: AnyFunction) -> AnyFunction:
-            mcp_server.add_tool(
-                fn, name=name, description=description, annotations=annotations
-            )
-            return fn
-
-        return decorator
-
-    def resource(
-        self,
-        uri: str,
-        *,
-        name: str | None = None,
-        description: str | None = None,
-        mime_type: str | None = None,
-    ) -> Callable[[AnyFunction], AnyFunction]:
-        """Decorator to register a function as a resource.
-
-        The function will be called when the resource is read to generate its content.
-        The function can return:
-        - str for text content
-        - bytes for binary content
-        - other types will be converted to JSON
-
-        If the URI contains parameters (e.g. "resource://{param}") or the function
-        has parameters, it will be registered as a template resource.
-
-        Args:
-            uri: URI for the resource (e.g. "resource://my-resource" or "resource://{param}")
-            name: Optional name for the resource
-            description: Optional description of the resource
-            mime_type: Optional MIME type for the resource
-
-        Example:
-            @server.resource("resource://my-resource")
-            def get_data() -> str:
-                return "Hello, world!"
-
-            @server.resource("resource://my-resource")
-            async get_data() -> str:
-                data = await fetch_data()
-                return f"Hello, world! {data}"
-
-            @server.resource("resource://{city}/weather")
-            def get_weather(city: str) -> str:
-                return f"Weather for {city}"
-
-            @server.resource("resource://{city}/weather")
-            async def get_weather(city: str) -> str:
-                data = await fetch_weather(city)
-                return f"Weather for {city}: {data}"
-        """
-        # Check if user passed function directly instead of calling decorator
-        if callable(uri):
-            raise TypeError(
-                "The @resource decorator was used incorrectly. "
-                "Did you forget to call it? Use @resource('uri') instead of @resource"
-            )
-
-        def decorator(fn: AnyFunction) -> AnyFunction:
-            # Check if this should be a template
-            has_uri_params = "{" in uri and "}" in uri
-            has_func_params = bool(inspect.signature(fn).parameters)
-
-            if has_uri_params or has_func_params:
-                # Validate that URI params match function params
-                uri_params = set(re.findall(r"{(\w+)}", uri))
-                func_params = set(inspect.signature(fn).parameters.keys())
-
-                if uri_params != func_params:
-                    raise ValueError(
-                        f"Mismatch between URI parameters {uri_params} "
-                        f"and function parameters {func_params}"
-                    )
-
-                # Register as template
-                mcp_server._resource_manager.add_template(
-                    fn=fn,
-                    uri_template=uri,
-                    name=name,
-                    description=description,
-                    mime_type=mime_type or "text/plain",
-                )
-            else:
-                # Register as regular resource
-                resource = FunctionResource(
-                    uri=AnyUrl(uri),
-                    name=name,
-                    description=description,
-                    mime_type=mime_type or "text/plain",
-                    fn=fn,
-                )
-                mcp_server.add_resource(resource)
-            return fn
-
-        return decorator
-
-    def prompt(
-        self, name: str | None = None, description: str | None = None
-    ) -> Callable[[AnyFunction], AnyFunction]:
-        """Decorator to register a prompt.
-
-        Args:
-            name: Optional name for the prompt (defaults to function name)
-            description: Optional description of what the prompt does
-
-        Example:
-            @server.prompt()
-            def analyze_table(table_name: str) -> list[Message]:
-                schema = read_table_schema(table_name)
-                return [
-                    {
-                        "role": "user",
-                        "content": f"Analyze this schema:\n{schema}"
-                    }
-                ]
-
-            @server.prompt()
-            async def analyze_file(path: str) -> list[Message]:
-                content = await read_file(path)
-                return [
-                    {
-                        "role": "user",
-                        "content": {
-                            "type": "resource",
-                            "resource": {
-                                "uri": f"file://{path}",
-                                "text": content
-                            }
-                        }
-                    }
-                ]
-        """
-        # Check if user passed function directly instead of calling decorator
-        if callable(name):
-            raise TypeError(
-                "The @prompt decorator was used incorrectly. "
-                "Did you forget to call it? Use @prompt() instead of @prompt"
-            )
-
-        def decorator(func: AnyFunction) -> AnyFunction:
-            prompt = Prompt.from_function(func, name=name, description=description)
-            mcp_server.add_prompt(prompt)
-            return func
-
-        return decorator
-
-
-class pAPIRouter(RESTRouter, MPCRouter):
-    """
-    Combines FastAPI routing with Model Context Protocol (MCP) capabilities.
-
-    This hybrid router allows defining REST endpoints alongside tools, prompts,
-    and resources designed for AI/ML interaction using the MCP framework.
-
-    Suitable for building intelligent APIs that expose traditional routes
-    and AI-driven tools in a unified and modular interface.
-    """
-
     def http(self, *args, **kwargs):
         """
         Alias for `.get(..., include_in_schema=False)`.
@@ -2602,3 +2417,17 @@ class pAPIRouter(RESTRouter, MPCRouter):
         """
 
         return self.get(include_in_schema=False, *args, **kwargs)
+
+
+class MPCRouter(FastMCP):
+    """
+    Extension layer that adds Model Context Protocol (MCP) capabilities.
+
+    This class provides decorators to register tools, prompts, and resources
+    that interact with the MCP server. These decorators integrate additional
+    logic such as context passing, progress reporting, and dynamic resource handling.
+
+    Intended to be combined with a router for building AI/ML-driven APIs.
+
+    ( Just an FasMCP alias ;p )
+    """

@@ -61,7 +61,7 @@ class Image(Document):
         """
         Returns a public-facing URL for accessing the image.
         """
-        return f"/images/{self.id}"
+        return f"/images/get/{self.id}"
 
     def storage_path(self, storage_root: Path) -> Path:
         """

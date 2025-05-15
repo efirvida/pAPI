@@ -2,11 +2,13 @@ import hashlib
 import uuid
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import filetype
 from PIL import ExifTags
 from PIL import Image as PILImage
+
+from papi.core.settings import get_config
 
 from .models import Image
 
@@ -17,13 +19,12 @@ class ImageService:
     using a hierarchical file system and metadata indexing.
     """
 
-    def __init__(self, storage_root: Union[str, Path]) -> None:
+    def __init__(self) -> None:
         """
         Initialize the image service with the given root storage directory.
-
-        Args:
-            storage_root (Union[str, Path]): Root directory to store image files.
         """
+        storage_root = get_config().storage.images
+
         self.storage_root = Path(storage_root)
         self.storage_root.mkdir(parents=True, exist_ok=True)
 

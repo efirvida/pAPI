@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import List
 
 from fastapi import File, HTTPException, UploadFile
@@ -6,15 +5,13 @@ from fastapi.responses import FileResponse
 from pydantic import UUID4, BaseModel
 
 from papi.core.router import RESTRouter
-from papi.core.settings import get_config
 
 from .models import Image, ImageMetadata
 from .service import ImageService
 
 router = RESTRouter(prefix="/images", tags=["images"])
 
-config = get_config()
-image_service = ImageService(Path(config.storage.images))
+image_service = ImageService()
 
 
 class ImageResponse(BaseModel):
@@ -32,7 +29,7 @@ class ImageResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("/", response_model=List[ImageResponse])
+@router.get("/", response_model=List[ImageResponse], expose_as_mcp_tool=True)
 async def list_images():
     """
     List all stored images with their metadata.
