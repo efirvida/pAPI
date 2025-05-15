@@ -1,5 +1,6 @@
 """
-Addon management system for dynamic module loading and dependency resolution.
+Addon management system for dynamic module loading, dependency resolution,
+model discovery, and router registration for FastAPI and custom protocols.
 """
 
 import importlib
@@ -9,18 +10,19 @@ from collections import defaultdict
 from inspect import isclass, ismodule
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, List, Set, Tuple, Type
+from typing import Any, Dict, List, Set, Type
 
 from beanie import Document
+from fastapi import APIRouter as FASTApiRouter
 
 from papi.core.models.addons import AddonManifest
-from papi.core.router import RESTRouter
+from papi.core.router import MPCRouter, RESTRouter
 
 
 class AddonsGraph:
     """
-    Represents addon dependencies as a directed acyclic graph (DAG)
-    and provides topological sorting with cycle detection.
+    Represents a directed acyclic graph (DAG) of addon dependencies.
+    Provides cycle detection and topological sorting for load order resolution.
     """
 
     def __init__(self) -> None:
@@ -28,6 +30,9 @@ class AddonsGraph:
         self.addons: Dict[str, AddonManifest] = {}
 
     def add_module(self, addon_definition: AddonManifest) -> None:
+        """
+        Register a new addon and its dependencies in the graph.
+        """
         addon_id = addon_definition.addon_id
         if addon_id in self.addons:
             raise ValueError(f"Addon '{addon_definition.name}' is already registered")
@@ -36,9 +41,13 @@ class AddonsGraph:
         self.graph[addon_id].extend(addon_definition.depends)
 
         for dependency in addon_definition.depends:
-            self.graph[dependency]  # Ensure node exists
+            self.graph[dependency]  # Ensure dependency node exists
 
     def detect_cycles(self) -> List[List[str]]:
+        """
+        Detect cycles in the dependency graph.
+        Returns a list of cycles found (each as a list of addon IDs).
+        """
         visited: Set[str] = set()
         stack: Set[str] = set()
         current_path: List[str] = []
@@ -66,6 +75,10 @@ class AddonsGraph:
         return cycles
 
     def topological_order(self) -> List[str]:
+        """
+        Returns a list of addon IDs in topological order of dependencies.
+        Raises an exception if cycles are detected.
+        """
         if cycles := self.detect_cycles():
             raise ValueError(f"Dependency cycle detected: {cycles}")
 
@@ -83,15 +96,19 @@ class AddonsGraph:
             if node not in visited:
                 dfs(node)
 
-        return order[::-1]
+        return order
 
     def __str__(self) -> str:
         return "\n".join(f"{source} -> {deps}" for source, deps in self.graph.items())
 
 
 def get_addons_from_dirs(
-    addons_paths: Tuple[str], enabled_addons_ids: List[str]
+    addons_paths: List[str], enabled_addons_ids: List[str]
 ) -> AddonsGraph:
+    """
+    Scan directories for available addons, parse their manifests, and build
+    a dependency graph including implicit dependencies.
+    """
     graph = AddonsGraph()
     detected_dependencies: Set[str] = set()
     addons_map: Dict[str, AddonManifest] = {}
@@ -133,6 +150,9 @@ def get_addons_from_dirs(
 
 
 def import_addon_module(addon: AddonManifest) -> ModuleType:
+    """
+    Dynamically import an addon Python module given its manifest.
+    """
     package_path = str(addon.path.parent)
     module_name = addon.path.name
 
@@ -146,6 +166,10 @@ def import_addon_module(addon: AddonManifest) -> ModuleType:
 
 
 def load_and_import_all_addons(graph: AddonsGraph) -> Dict[str, ModuleType]:
+    """
+    Load and import all addons from the graph in correct dependency order.
+    Returns a dictionary of {addon_id: imported_module}.
+    """
     modules: Dict[str, ModuleType] = {}
 
     for addon_id in graph.topological_order():
@@ -156,6 +180,9 @@ def load_and_import_all_addons(graph: AddonsGraph) -> Dict[str, ModuleType]:
 
 
 def get_beanie_documents_from_addon(module: ModuleType) -> List[Type[Document]]:
+    """
+    Recursively search an addon module and return all Beanie document classes.
+    """
     models: Set[Type[Document]] = set()
     processed: Set[ModuleType] = set()
 
@@ -177,9 +204,15 @@ def get_beanie_documents_from_addon(module: ModuleType) -> List[Type[Document]]:
     return list(models)
 
 
-def get_router_from_addon(module: ModuleType) -> List[RESTRouter]:
-    routers: List[RESTRouter] = []
-    processed: Set[ModuleType] = set()
+def get_router_from_addon(
+    module: ModuleType,
+) -> List[RESTRouter | MPCRouter | FASTApiRouter]:
+    """
+    Recursively search an addon module and return all router instances
+    (REST, MPC, or FastAPI).
+    """
+    routers = []
+    processed = set()
 
     def _search(current: ModuleType) -> None:
         if current in processed:
@@ -190,7 +223,7 @@ def get_router_from_addon(module: ModuleType) -> List[RESTRouter]:
             if attr_name.startswith("_"):
                 continue
             attr = getattr(current, attr_name)
-            if isinstance(attr, RESTRouter):
+            if isinstance(attr, (RESTRouter, MPCRouter, FASTApiRouter)):
                 routers.append(attr)
             elif _is_submodule(attr, module):
                 _search(attr)
@@ -200,14 +233,23 @@ def get_router_from_addon(module: ModuleType) -> List[RESTRouter]:
 
 
 def has_static_files(module: ModuleType) -> bool:
+    """
+    Check if the addon module contains a 'static' directory.
+    """
     return (Path(module.__path__[0]) / "static").exists()
 
 
 def _is_document_subclass(obj: Any) -> bool:
+    """
+    Return True if the object is a Beanie document subclass.
+    """
     return isclass(obj) and issubclass(obj, Document) and obj is not Document
 
 
 def _is_submodule(obj: Any, parent: ModuleType) -> bool:
+    """
+    Return True if the object is a submodule of the given parent module.
+    """
     return (
         ismodule(obj)
         and obj.__package__ is not None

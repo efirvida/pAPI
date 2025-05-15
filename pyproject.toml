@@ -1,6 +1,6 @@
 [project]
 name = "papi"
-version = "0.1.0"
+version = "0.0.1"
 description = "pAPI – Python/Pluggable API Framework \n **pAPI** (short for **Python API** or **Pluggable API**) is a modular micro-framework built on top of [FastAPI](https://fastapi.tiangolo.com/), designed to simplify the creation of composable and interoperable web APIs. \n It extends FastAPI’s routing system to enable advanced features such as exposing HTTP endpoints as MCP tools, making it a powerful choice for agent-based applications, modular services, and programmable API ecosystems."
 
 authors = [
@@ -11,12 +11,15 @@ dependencies = [
     "beanie>=1.29.0",
     "dotenv>=0.9.9",
     "fastapi>=0.115.12",
-    "fastmcp>=2.3.0",
+    "fastmcp>=2.3.4",
     "filetype>=1.2.0",
     "loguru>=0.7.3",
     "pillow>=11.2.1",
     "pyyaml>=6.0.2",
     "uvicorn>=0.34.2",
+    "ipython>=9.2.0",
+    "nest-asyncio>=1.6.0",
+    "click-default-group>=1.2.4",
 ]
 readme = "README.md"
 requires-python = ">= 3.13"

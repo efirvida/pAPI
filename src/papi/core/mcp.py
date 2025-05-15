@@ -7,9 +7,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route
 
-# Global server instance to be reused across the project
-mcp_server = FastMCP()
-
 # Constants for endpoints
 SSE_ENDPOINT = "/sse/"
 MESSAGE_ENDPOINT = "/messages/"
