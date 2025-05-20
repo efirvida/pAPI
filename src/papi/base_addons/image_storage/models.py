@@ -1,10 +1,10 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 from uuid import uuid4
 
 from beanie import Document
-from pydantic import UUID4, BaseModel, Field, computed_field
+from pydantic import UUID4, BaseModel, Field, StringConstraints
 
 
 class ImageMetadata(BaseModel):
@@ -24,19 +24,7 @@ class ImageMetadata(BaseModel):
 
 class Image(Document):
     """
-    Document model representing an image stored in the system.
-
-    Fields:
-    - id: UUID of the image document.
-    - file_name: Name of the file (without extension).
-    - file_extension: File extension (e.g., .jpg, .png).
-    - file_size: Size of the file in bytes.
-    - mime_type: MIME type of the image (e.g., image/jpeg).
-    - md5: MD5 hash of the file content for deduplication.
-    - metadata: Optional metadata including image dimensions and EXIF data.
-    - file_path: Relative path where the image is stored.
-    - created_at: Timestamp of creation.
-    - updated_at: Timestamp of last update.
+    Represents an image stored in the system.
     """
 
     id: UUID4 = Field(default_factory=uuid4, alias="_id")
@@ -45,32 +33,26 @@ class Image(Document):
     file_extension: str
     file_size: int
     mime_type: str
-    md5: str
+    md5: Annotated[str, StringConstraints(pattern="^[a-fA-F0-9]{32}$")]
     metadata: ImageMetadata = Field(default_factory=ImageMetadata)
     file_path: str
 
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
-        name = "images"  # Name of the MongoDB collection
-
-    @computed_field
-    @property
-    def url(self) -> str:
-        """
-        Returns a public-facing URL for accessing the image.
-        """
-        return f"/images/get/{self.id}"
+        name = "images"
+        indexes = ["md5", "file_name", "mime_type"]
+        unique_fields = ["md5"]
 
     def storage_path(self, storage_root: Path) -> Path:
         """
-        Returns the absolute path to the stored image on disk.
+        Returns the full storage path for the image file.
 
         Args:
-            storage_root (Path): Root path of the image storage.
+            storage_root (Path): Base directory for storage.
 
         Returns:
-            Path: Full path to the image file.
+            Path: Absolute path to the image file.
         """
         return storage_root / self.file_path
