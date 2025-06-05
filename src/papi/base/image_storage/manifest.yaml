@@ -1,0 +1,85 @@
+version: "0.2.0"
+title: "Image Storage"
+description: >
+  Service for storing and managing images with support for metadata extraction, 
+  EXIF processing, and efficient file organization. Features Redis-based caching,
+  duplicate detection via MD5 hashing, hierarchical storage structure, and 
+  automatic image optimization with format-specific compression.
+
+authors:
+  - name: "pAPI Team"
+
+maintainers:
+  - name: "Eduardo Fírvida"
+    email: "efirvida@gmail.com"
+
+keywords:
+  - image
+  - storage
+  - metadata
+  - EXIF
+  - file management
+  - redis
+  - caching
+
+python_dependencies:
+  - pillow
+
+endpoints:
+  - path: /images/
+    method: GET
+    description: List all stored images with their metadata.
+    features:
+      - Returns paginated list of images
+      - Includes basic metadata for each image
+      - Image size and format information
+
+  - path: /images/
+    method: POST
+    description: Upload and store a new image file.
+    features:
+      - MIME type detection
+      - MD5-based duplicate detection
+      - EXIF metadata extraction
+      - Hierarchical file storage
+      - Automatic cache updates
+      - Image optimization and compression
+      - Format-specific quality settings
+      - Automatic size reduction
+      - Optional format conversion
+
+  - path: /images/{image_id}
+    method: GET
+    description: Retrieve the binary file of an image by its ID.
+    features:
+      - Redis-based path caching
+      - Appropriate Content-Type headers
+      - Content-Disposition headers
+      - Browser caching support
+
+  - path: /images/{image_id}/metadata
+    method: GET
+    description: Get detailed metadata for a specific image.
+    features:
+      - Redis-based metadata caching
+      - Complete EXIF data
+      - Image technical information
+      - Format details
+
+  - path: /images/{image_id}
+    method: DELETE
+    description: Remove an image and its associated data.
+    features:
+      - File removal
+      - Cache invalidation
+      - Storage cleanup
+      - Metadata cleanup
+
+# Future planned features:
+# - Thumbnail generation
+# - Quota management
+# - Size validation
+# - Malware scanning
+# - Monitoring and metrics
+# - WebP conversion options
+# - Progressive JPEG support
