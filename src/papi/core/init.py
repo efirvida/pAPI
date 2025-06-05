@@ -16,6 +16,7 @@ from papi.core.logger import logger
 from papi.core.mcp import create_sse_server
 from papi.core.router import MPCRouter
 from papi.core.settings import get_config
+from papi.core.utils import install_python_dependencies
 
 
 async def init_base_system() -> tuple[dict[str, ModuleType], dict[str, type]]:
@@ -60,6 +61,10 @@ async def init_base_system() -> tuple[dict[str, ModuleType], dict[str, type]]:
             addons_paths=addons_paths,
             enabled_addons_ids=config.addons.enabled,
         )
+        python_deps = addons_graph.get_all_python_dependencies()
+        if python_deps:
+            install_python_dependencies(python_deps)
+
         modules = load_and_import_all_addons(addons_graph)
     except (ValueError, ImportError) as e:
         logger.exception(f"Failed to load addons: {e}")
