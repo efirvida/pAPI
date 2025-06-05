@@ -14,6 +14,8 @@ from typing import Any, Dict, List, Set, Type
 
 from beanie import Document
 from fastapi import APIRouter as FASTApiRouter
+from loguru import logger
+from sqlalchemy.orm import DeclarativeMeta
 
 from papi.core.models.addons import AddonManifest
 from papi.core.router import MPCRouter, RESTRouter
@@ -210,6 +212,53 @@ def get_beanie_documents_from_addon(module: ModuleType) -> List[Type[Document]]:
     return list(models)
 
 
+def get_sqlalchemy_models_from_addon(module: ModuleType) -> List[Type[DeclarativeMeta]]:
+    """
+    Recursively search an addon module and return all SQLAlchemy declarative model classes.
+    """
+    models: Set[Type[DeclarativeMeta]] = set()
+    processed: Set[ModuleType] = set()
+
+    def _search(current: ModuleType) -> None:
+        if current in processed:
+            return
+        processed.add(current)
+
+        for attr_name in dir(current):
+            if attr_name.startswith("_"):
+                continue
+            attr = getattr(current, attr_name)
+            if _is_sqlalchemy_model(attr):
+                models.add(attr)
+            elif _is_submodule(attr, module):
+                _search(attr)
+
+    _search(module)
+    return list(models)
+
+
+def get_addon_setup_hooks(module: ModuleType) -> List[Type[AddonSetupHook]]:
+    hooks: Set[Type[AddonSetupHook]] = set()
+    processed: Set[ModuleType] = set()
+
+    def _search(current: ModuleType) -> None:
+        if current in processed:
+            return
+        processed.add(current)
+
+        for attr_name in dir(current):
+            if attr_name.startswith("_"):
+                continue
+            attr = getattr(current, attr_name)
+            if _implements_addon_setup_hook(attr):
+                hooks.add(attr)
+            elif _is_submodule(attr, module):
+                _search(attr)
+
+    _search(module)
+    return list(hooks)
+
+
 def get_router_from_addon(
     module: ModuleType,
 ) -> List[RESTRouter | MPCRouter | FASTApiRouter]:
@@ -250,6 +299,13 @@ def _is_document_subclass(obj: Any) -> bool:
     Return True if the object is a Beanie document subclass.
     """
     return isclass(obj) and issubclass(obj, Document) and obj is not Document
+
+
+def _is_sqlalchemy_model(obj: Any) -> bool:
+    """
+    Return True if the object is a SQLAlchemy declarative model class.
+    """
+    return isclass(obj) and hasattr(obj, "__tablename__") and hasattr(obj, "__table__")
 
 
 def _is_submodule(obj: Any, parent: ModuleType) -> bool:
