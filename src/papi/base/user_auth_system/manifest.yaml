@@ -1,0 +1,30 @@
+version: "0.1.0"
+title: "User Authentication and Authorization System"
+description: >
+  A flexible and extensible user control system implementing both
+  Role-Based Access Control (RBAC) and Attribute-Based Access Control (ABAC)
+  for secure identity and permission management.
+
+authors:
+  - name: "pAPI Team"
+maintainers:
+  - name: "Eduardo Fírvida"
+    email: "efirvida@gmail.com"
+
+keywords:
+  - authentication
+  - authorization
+  - RBAC
+  - ABAC
+  - user-management
+  - access-control
+
+dependencies:
+  - image_storage
+  
+python_dependencies:
+  - bcrypt
+  - casbin
+  - casbin-async-sqlalchemy-adapter
+  - pyjwt[crypto]
+  - pydantic[email]
