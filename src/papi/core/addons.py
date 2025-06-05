@@ -28,6 +28,7 @@ class AddonsGraph:
     def __init__(self) -> None:
         self.graph: Dict[str, List[str]] = defaultdict(list)
         self.addons: Dict[str, AddonManifest] = {}
+        self.required_python_dependencies: Set[str] = set()
 
     def add_module(self, addon_definition: AddonManifest) -> None:
         """
@@ -38,10 +39,12 @@ class AddonsGraph:
             raise ValueError(f"Addon '{addon_definition.name}' is already registered")
 
         self.addons[addon_id] = addon_definition
-        self.graph[addon_id].extend(addon_definition.depends)
+        self.graph[addon_id].extend(addon_definition.dependencies)
 
-        for dependency in addon_definition.depends:
-            self.graph[dependency]  # Ensure dependency node exists
+        for dependency in addon_definition.dependencies:
+            self.graph[dependency]
+
+        self.required_python_dependencies.update(addon_definition.python_dependencies)
 
     def detect_cycles(self) -> List[List[str]]:
         """
@@ -98,6 +101,9 @@ class AddonsGraph:
 
         return order
 
+    def get_all_python_dependencies(self) -> List[str]:
+        return sorted(self.required_python_dependencies)
+
     def __str__(self) -> str:
         return "\n".join(f"{source} -> {deps}" for source, deps in self.graph.items())
 
@@ -117,7 +123,7 @@ def get_addons_from_dirs(
         base_path = Path(addons_path).resolve()
 
         if not base_path.is_dir():
-            raise FileNotFoundError(f"Addons directory not found: {base_path}")
+            logger.warning(f"Extra addons directory not found in: {base_path}")
 
         sys.path.insert(0, str(base_path))
         try:
@@ -132,7 +138,7 @@ def get_addons_from_dirs(
 
                 manifest = AddonManifest.from_yaml(manifest_path)
                 addons_map[module_info.name] = manifest
-                detected_dependencies.update(manifest.depends)
+                detected_dependencies.update(manifest.dependencies)
 
                 if module_info.ispkg and (
                     module_info.name in enabled_addons_ids
@@ -255,3 +261,14 @@ def _is_submodule(obj: Any, parent: ModuleType) -> bool:
         and obj.__package__ is not None
         and obj.__package__.startswith(parent.__package__)
     )
+
+
+def _implements_addon_setup_hook(obj: object) -> bool:
+    """
+    Check if the object is a class or instance that implements AddonSetupHook.
+    """
+    # Si es una clase, verificamos con issubclass, si es instancia, con isinstance
+    if isinstance(obj, type):
+        # issubclass puede lanzar TypeError si obj no es clase, pero ya chequeamos que sí
+        return issubclass(obj, AddonSetupHook)
+    return isinstance(obj, AddonSetupHook)
