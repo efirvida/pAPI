@@ -25,6 +25,5 @@ dependencies:
 python_dependencies:
   - bcrypt
   - casbin
-  - casbin-async-sqlalchemy-adapter
   - pyjwt[crypto]
   - pydantic[email]
