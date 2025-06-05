@@ -1,35 +1,176 @@
 import os
 from types import ModuleType
+from typing import Callable, Type
 
 from beanie import init_beanie
 from mcp.server.fastmcp import FastMCP
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+)
+from sqlalchemy.orm import DeclarativeMeta
 from starlette.applications import Starlette
 
 from papi.core.addons import (
+    AddonSetupHook,
+    get_addon_setup_hooks,
     get_addons_from_dirs,
     get_beanie_documents_from_addon,
     get_router_from_addon,
+    get_sqlalchemy_models_from_addon,
     load_and_import_all_addons,
 )
 from papi.core.logger import logger
 from papi.core.mcp import create_sse_server
 from papi.core.router import MPCRouter
 from papi.core.settings import get_config
+from papi.core.db import create_database_if_not_exists
 from papi.core.utils import install_python_dependencies
 
 
-async def init_base_system() -> tuple[dict[str, ModuleType], dict[str, type]]:
+async def init_addons(modules: dict[str, ModuleType]) -> None:
     """
-    Initialize the base system by loading addons and setting up the database connection.
+    Initialize and execute setup hooks for all registered addon modules.
+    """
+    for addon_id, module in modules.items():
+        hook_factories: list[Callable[[], AddonSetupHook]] = get_addon_setup_hooks(
+            module
+        )
 
-    This function performs the following steps:
-    - Reads server configuration.
-    - Initializes the MongoDB connection if enabled.
-    - Loads addons from the base and extra paths specified in the configuration.
-    - Imports each addon as a Python module.
-    - Collects Beanie document models from each addon.
-    - Initializes the Beanie ODM if documents and MongoDB are available.
+        for hook_factory in hook_factories:
+            setup_hook = hook_factory()
+            await setup_hook.run()
+
+
+async def init_mongodb(config, modules: dict[str, ModuleType]) -> dict[str, type]:
+    """
+    Initializes MongoDB (via Beanie) if documents are found and configuration is valid.
+
+    This function:
+    - Scans loaded modules for Beanie document models.
+    - Logs a warning or error if documents are found but no MongoDB URI is configured.
+    - Initializes the Beanie ODM if both are present.
+
+    Args:
+        config: The server configuration object.
+        modules: Dictionary of loaded addon modules.
+
+    Returns:
+        A dictionary mapping document class names to their class definitions.
+
+    Raises:
+        RuntimeError: If Beanie documents are found but MongoDB URI is missing.
+    """
+    beanie_document_models = {}
+
+    # Buscar documentos en los módulos
+    logger.info("Searching for MongoDB documents in active addons")
+    for addon_id, module in modules.items():
+        addon_documents = get_beanie_documents_from_addon(module)
+        if addon_documents:
+            doc_names = [doc.__name__ for doc in addon_documents]
+            logger.debug(f"  → Documents from '{addon_id}': {', '.join(doc_names)}")
+            beanie_document_models.update(dict(zip(doc_names, addon_documents)))
+
+    if beanie_document_models and not config.database.mongodb_uri:
+        logger.error("Found Beanie document models but MongoDB URI is not configured.")
+        raise RuntimeError("MongoDB URI required to initialize Beanie document models.")
+
+    if not beanie_document_models:
+        logger.info("No Beanie document models found. Skipping MongoDB initialization.")
+        return {}
+
+    client = AsyncIOMotorClient(config.database.mongodb_uri)
+    try:
+        logger.info(
+            f"Initializing MongoDB with {len(beanie_document_models)} document models"
+        )
+        await init_beanie(
+            database=client.get_database(),
+            document_models=beanie_document_models.values(),
+        )
+
+    except ServerSelectionTimeoutError:
+        logger.exception("MongoDB connection timeout.")
+        raise RuntimeError("MongoDB Server connection timeout.")
+    except PyMongoError as exc:
+        logger.exception("MongoDB Server connection error.")
+        raise RuntimeError(f"MongoDB Server connection error: {exc!r}")
+
+    return beanie_document_models
+
+
+async def init_sqlalchemy(
+    config,
+    modules: dict[str, ModuleType],
+    create_tables: bool = True,
+) -> dict[str, Type[DeclarativeMeta]] | None:
+    """
+    Initializes SQLAlchemy if models are found and configuration is valid.
+
+    Args:
+        config: Configuration object with database info.
+        modules: Dictionary of loaded addon modules.
+        create_tables: Whether to create tables automatically.
+
+    Returns:
+        Dictionary of model names to model classes
+        Or None if no models were found.
+
+    Raises:
+        RuntimeError: If models are found but no DB URI is configured, or if connection fails.
+    """
+    sqlalchemy_models: dict[str, Type[DeclarativeMeta]] = {}
+
+    logger.info("Searching for SQL models in active addons")
+    for addon_id, module in modules.items():
+        addon_models = get_sqlalchemy_models_from_addon(module)
+        if addon_models:
+            model_names = [model.__name__ for model in addon_models]
+            logger.debug(
+                f"  → SQLAlchemy models from '{addon_id}': {', '.join(model_names)}"
+            )
+            sqlalchemy_models.update(dict(zip(model_names, addon_models)))
+
+    if not sqlalchemy_models:
+        logger.info("No SQL models found. Skipping SQLAlchemy initialization.")
+        return None
+
+    if not config.database.sql_uri:
+        logger.error("Found SQL models but SQL connection URI is not configured.")
+        raise RuntimeError("SQLAlchemy URI required to initialize SQLAlchemy models.")
+
+    try:
+        # Ensure database exists
+        await create_database_if_not_exists(config.database.sql_uri)
+
+        # Create async engine and sessionmaker
+        engine = create_async_engine(config.database.sql_uri, echo=False, future=True)
+
+        logger.info(
+            f"SQLAlchemy engine and session initialized with {len(sqlalchemy_models)} models."
+        )
+
+        if create_tables:
+            # Get metadata from any model (they should all share the same metadata)
+            metadata = next(iter(sqlalchemy_models.values())).metadata
+
+            async with engine.begin() as conn:
+                await conn.run_sync(metadata.create_all)
+            logger.info("All SQLAlchemy tables created.")
+
+        return sqlalchemy_models
+
+    except SQLAlchemyError as exc:
+        logger.exception("SQLAlchemy initialization error.")
+        raise RuntimeError(f"SQLAlchemy initialization error: {exc!r}")
+
+
+async def init_base_system() -> dict:
+    """
+    Initialize the base system by loading addons and initializing the database.
 
     Returns:
         tuple:
@@ -40,19 +181,10 @@ async def init_base_system() -> tuple[dict[str, ModuleType], dict[str, type]]:
         RuntimeError: If addon loading fails due to misconfiguration or import errors.
     """
     config = get_config()
-    mongo_db_enabled = bool(config.database.mongodb_uri)
-    beanie_document_models = {}
 
-    # Initialize MongoDB client if URI is provided
-    client = (
-        AsyncIOMotorClient(config.database.mongodb_uri) if mongo_db_enabled else None
-    )
-
-    # Define base and user-defined addon paths
+    # Define addon paths
     logger.info(f"Loading addons from: {config.addons.extra_addons_path}")
-    base_addons_path = os.path.abspath(
-        os.path.join(__file__, "..", "..", "base_addons")
-    )
+    base_addons_path = os.path.abspath(os.path.join(__file__, "..", "..", "base"))
     addons_paths = [config.addons.extra_addons_path, base_addons_path]
 
     try:
@@ -66,40 +198,30 @@ async def init_base_system() -> tuple[dict[str, ModuleType], dict[str, type]]:
             install_python_dependencies(python_deps)
 
         modules = load_and_import_all_addons(addons_graph)
+
     except (ValueError, ImportError) as e:
         logger.exception(f"Failed to load addons: {e}")
-        if mongo_db_enabled:
-            client.close()
         raise RuntimeError("Addon loading failed") from e
     except Exception as e:
         logger.exception(f"Unexpected error while loading addons: {e}")
         modules = {}
 
-    logger.info(f"  → Loaded {len(modules)} addons")
+    logger.info(f"Loaded {len(modules)} addons")
 
-    # Process each addon module
-    for addon_id, module in modules.items():
+    for addon_id in modules:
         addon = addons_graph.addons[addon_id]
-        logger.debug(f"    • {addon.name} (v{addon.version}) by {addon.author}")
+        logger.debug(f"  → {addon.name} (v{addon.version}) by {addon.authors}")
 
-        # Register Beanie document models for each addon
-        addon_documents = get_beanie_documents_from_addon(module)
-        if addon_documents and mongo_db_enabled:
-            doc_names = [doc.__name__ for doc in addon_documents]
-            logger.debug(f"      → Documents: {', '.join(doc_names)}")
-            beanie_document_models.update(dict(zip(doc_names, addon_documents)))
+    # Initialize MongoDB (if applicable)
+    beanie_document_models = await init_mongodb(config, modules)
+    sql_models = await init_sqlalchemy(config, modules)
+    await init_addons(modules)
 
-    # Initialize Beanie ODM with the collected documents
-    if mongo_db_enabled and beanie_document_models:
-        logger.info(
-            f"Initializing database with {len(beanie_document_models)} document models"
-        )
-        await init_beanie(
-            database=client.get_database(),
-            document_models=beanie_document_models.values(),
-        )
-
-    return modules, beanie_document_models
+    return {
+        "modules": modules,
+        "mongo_documents": beanie_document_models,
+        "sql_models": sql_models,
+    }
 
 
 def init_mcp_server(
@@ -124,7 +246,7 @@ def init_mcp_server(
 
     for module in modules.values():
         loaded_tools = []
-        logger.debug(f"  -> Searching MCP tools in module: {module.__name__}")
+        logger.debug(f"  → Searching MCP tools in module: {module.__name__}")
         routers = get_router_from_addon(module)
 
         for router in routers:
@@ -133,7 +255,7 @@ def init_mcp_server(
                 if isinstance(route, MPCRouter) or getattr(route, "is_mcp_tool", False):
                     name = route.endpoint.__name__
                     if name not in loaded_tools:
-                        logger.debug(f"    • Adding MCP tool: {name}")
+                        logger.debug(f"  → Adding MCP tool: {name}")
                         mcp_server.add_tool(route.endpoint)
                         loaded_tools.append(name)
 
