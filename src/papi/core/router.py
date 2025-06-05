@@ -154,6 +154,12 @@ class RESTRouter(FastAPIRouter):
     routes_map: Dict[str, APIRoute]
     routes: Sequence[APIRoute]
 
+    def __hash__(self):
+        return hash(id(self))
+
+    def __eq__(self, other):
+        return self is other
+
     def __init__(
         self,
         *,
