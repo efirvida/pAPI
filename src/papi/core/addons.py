@@ -21,6 +21,17 @@ from papi.core.models.addons import AddonManifest
 from papi.core.router import MPCRouter, RESTRouter
 
 
+class AddonSetupHook:
+    """
+    Optional interface for addons that need to run setup logic before system start.
+    Can be used for tasks such as migrations, initial configuration, or checks.
+    """
+
+    async def run(self) -> None:
+        """Executed when the addon is registered or initialized."""
+        pass
+
+
 class AddonsGraph:
     """
     Represents a directed acyclic graph (DAG) of addon dependencies.

@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Extra, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class StorageConfig(BaseModel):
@@ -9,7 +9,7 @@ class StorageConfig(BaseModel):
     images: Optional[str] = ""
 
     class Config:
-        extra = Extra.allow
+        extra = "allow"
 
 
 class ServerConfig(BaseModel):
@@ -36,6 +36,9 @@ class DatabaseConfig(BaseModel):
         default="", description="SQL (PostgreSQL/MySQL/SQlite) connection URI"
     )
 
+    class Config:
+        extra = "allow"
+
 
 class AddonsConfig(BaseModel):
     """Addon system configuration."""
@@ -53,7 +56,7 @@ class GeneralInfoConfig(BaseModel):
     title: Optional[str] = "pAPI Platform"
 
     class Config:
-        extra = Extra.allow
+        extra = "allow"
 
 
 class LoggerLevel(StrEnum):
