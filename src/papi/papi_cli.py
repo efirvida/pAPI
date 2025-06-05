@@ -100,10 +100,13 @@ async def run_api_server(app: FastAPI):
         modules, _ = await init_base_system()
 
         # Register addons
+        loaded_routers = set()
         for addon_id, module in modules.items():
             if addon_routers := get_router_from_addon(module):
                 for router in addon_routers:
-                    app.include_router(router)
+                    if router not in loaded_routers:
+                        app.include_router(router)
+                        loaded_routers.add(router)
                 logger.debug(
                     f"Addon {addon_id}: Registered {len(addon_routers)} routes"
                 )
