@@ -1,7 +1,0 @@
-name: "Image Storage"
-version: "1.0.0"
-description: "Handles image ingestion, storage, metadata extraction (including EXIF), and file organization."
-author: "Eduardo Fírvida"
-maintainers:
-  - name: "Eduardo Fírvida"
-    email: "efirvida@gmail.com"
