@@ -13,13 +13,38 @@ server:
 
 database:
   mongodb_uri: "mongodb://root:example@localhost:27017/addons_db?authSource=admin"
+  sql_uri: "postgresql+asyncpg://localhost/bohio"
+  redis_uri: "redis://localhost:6379"
 
 addons:
   extra_addons_path: "/home/efirvida/Desktop/dev/pAPI/addons"
   enabled:
-    - image_storage
-
+    - user_auth_system
+  config:
+    user_auth_system:
+      allow_registration: true
+      defaul_user_roles: user
+      security:
+        access_token_expire_minutes: 60
+        allow_weak_passwords: true
+        lockout_duration_minutes: 15
+        bcrypt_rounds: 15
+        hash_algorithm: "HS256"
+        max_login_attempts: 5
+        secret_key: "7d67c1304fdee14f6bea776ed961531fb4007fcdf62d1b00e4e54de87b0007f9"
+        token_audience: bohio.com
+        token_issuer: bohio.com
+        key_rotation:
+          rotation_interval_days: 30
+          max_historical_keys: 3
+    image_storage:
+      image_optimization:
+        max_dimension: 2048 # Maximum width/height for images
+        jpeg_quality: 85    # JPEG compression quality (0-100)
+        png_compression: 6  # PNG compression level (0-9)
+        webp_quality: 80    # WebP quality for conversions
+        force_format: null  # Optional format to convert all images to (e.g. "WEBP")
 
 storage:
-  files: "/home/efirvida/Desktop/dev/pAPI/folder"
-  images: "/home/efirvida/Desktop/dev/pAPI/images"
+  files: "/home/efirvida/Desktop/dev/pAPI/data/files"
+  images: "/home/efirvida/Desktop/dev/pAPI/data/images"
