@@ -4,7 +4,7 @@ model discovery, and router registration for FastAPI and custom protocols.
 """
 
 import importlib
-import pkgutil
+import os
 import sys
 from collections import defaultdict
 from inspect import isclass, ismodule
@@ -125,44 +125,63 @@ def get_addons_from_dirs(
     addons_paths: List[str], enabled_addons_ids: List[str]
 ) -> AddonsGraph:
     """
-    Scan directories for available addons, parse their manifests, and build
-    a dependency graph including implicit dependencies.
+    Scan directories for available addons, parse their manifests,
+    and build a dependency graph including only the enabled addons
+    and their direct/indirect dependencies.
     """
     graph = AddonsGraph()
-    detected_dependencies: Set[str] = set()
-    addons_map: Dict[str, AddonManifest] = {}
+    all_manifests: Dict[str, AddonManifest] = {}
+    seen_addons: Set[str] = set()
 
+    # Optimización 1: Escaneo de manifiestos sin modificar sys.path
     for addons_path in addons_paths:
         base_path = Path(addons_path).resolve()
-
         if not base_path.is_dir():
-            logger.warning(f"Extra addons directory not found in: {base_path}")
+            logger.warning(f"Addons directory not found: {base_path}")
+            continue
 
-        sys.path.insert(0, str(base_path))
-        try:
-            for module_info in pkgutil.iter_modules([str(base_path)]):
-                package_path = base_path / module_info.name
-                manifest_path = package_path / "manifest.yaml"
+        for entry in os.scandir(base_path):
+            if not entry.is_dir():
+                continue
 
-                if not manifest_path.exists():
-                    raise FileNotFoundError(
-                        f"Missing 'manifest.yaml' in addon: {module_info.name}"
-                    )
+            manifest_path = base_path / entry.name / "manifest.yaml"
+            if not manifest_path.exists():
+                logger.warning(f"Missing 'manifest.yaml' in addon: {entry.name}")
+                continue
 
+            # Optimización 2: Evitar procesar duplicados
+            if entry.name in seen_addons:
+                continue
+            seen_addons.add(entry.name)
+
+            try:
                 manifest = AddonManifest.from_yaml(manifest_path)
-                addons_map[module_info.name] = manifest
-                detected_dependencies.update(manifest.dependencies)
+                all_manifests[entry.name] = manifest
+            except Exception as e:
+                logger.error(f"Error loading manifest for {entry.name}: {str(e)}")
 
-                if module_info.ispkg and (
-                    module_info.name in enabled_addons_ids
-                    or module_info.name in detected_dependencies
-                ):
-                    graph.add_module(manifest)
-        finally:
-            sys.path.pop(0)
+    # Optimización 3: Resolución iterativa de dependencias
+    resolved: Set[str] = set()
+    stack: List[str] = list(enabled_addons_ids)
 
-    for addon, manifest in addons_map.items():
-        if addon in detected_dependencies and addon not in graph.addons:
+    while stack:
+        addon_id = stack.pop()
+        if addon_id in resolved:
+            continue
+
+        manifest = all_manifests.get(addon_id)
+        if not manifest:
+            logger.warning(f"Addon '{addon_id}' not found in any addon path.")
+            resolved.add(addon_id)  # Evitar reintentos
+            continue
+
+        # Agregar dependencias no resueltas al stack
+        unresolved_deps = [dep for dep in manifest.dependencies if dep not in resolved]
+        if unresolved_deps:
+            stack.append(addon_id)  # Reingresar para procesar después
+            stack.extend(unresolved_deps)
+        else:
+            resolved.add(addon_id)
             graph.add_module(manifest)
 
     return graph
