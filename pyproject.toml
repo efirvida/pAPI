@@ -8,18 +8,24 @@ authors = [
 ]
 
 dependencies = [
+    "aioredis>=2.0.1",
+    "aiosqlite>=0.21.0",
+    "asyncpg>=0.30.0",
     "beanie>=1.29.0",
-    "dotenv>=0.9.9",
-    "fastapi>=0.115.12",
-    "fastmcp>=2.3.4",
-    "filetype>=1.2.0",
-    "loguru>=0.7.3",
-    "pillow>=11.2.1",
-    "pyyaml>=6.0.2",
-    "uvicorn>=0.34.2",
-    "ipython>=9.2.0",
-    "nest-asyncio>=1.6.0",
     "click-default-group>=1.2.4",
+    "fastapi>=0.115.12",
+    "fastmcp>=2.5.1",
+    "filetype>=1.2.0",
+    "ipython>=9.2.0",
+    "loguru>=0.7.3",
+    "nest-asyncio>=1.6.0",
+    "pip>=25.1.1",
+    "psycopg2-binary>=2.9.10",
+    "python-arango-async>=0.0.3",
+    "pyyaml>=6.0.2",
+    "redis>=6.1.0",
+    "sqlalchemy[asyncio]>=2.0.41",
+    "uvicorn>=0.34.2",
 ]
 readme = "README.md"
 requires-python = ">= 3.13"
