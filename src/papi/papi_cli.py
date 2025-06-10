@@ -243,7 +243,7 @@ def setup_api_exception_handler(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=response.model_dump(),
-            headers=exc.headers,
+            headers=getattr(exc, "headers", None),
         )
 
 
