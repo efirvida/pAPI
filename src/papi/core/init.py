@@ -22,11 +22,11 @@ from papi.core.addons import (
     get_sqlalchemy_models_from_addon,
     load_and_import_all_addons,
 )
+from papi.core.db import create_database_if_not_exists, get_redis_client
 from papi.core.logger import logger
 from papi.core.mcp import create_sse_server
 from papi.core.router import MPCRouter
 from papi.core.settings import get_config
-from papi.core.db import create_database_if_not_exists
 from papi.core.utils import install_python_dependencies
 
 
@@ -168,7 +168,7 @@ async def init_sqlalchemy(
         raise RuntimeError(f"SQLAlchemy initialization error: {exc!r}")
 
 
-async def init_base_system() -> dict:
+async def init_base_system(init_db_system: bool = True) -> dict:
     """
     Initialize the base system by loading addons and initializing the database.
 
@@ -213,8 +213,19 @@ async def init_base_system() -> dict:
         logger.debug(f"  → {addon.name} (v{addon.version}) by {addon.authors}")
 
     # Initialize MongoDB (if applicable)
-    beanie_document_models = await init_mongodb(config, modules)
-    sql_models = await init_sqlalchemy(config, modules)
+    if init_db_system and config.database.mongodb_uri:
+        # Init MongoDB Documents, and Beanie models on system Startup.
+        beanie_document_models = await init_mongodb(config, modules)
+
+        # Init SQL models and create tables on system Startup if tables not exist
+        sql_models = await init_sqlalchemy(config, modules)
+
+        # cache Redis client on startup
+        await get_redis_client()
+    else:
+        beanie_document_models = []
+        sql_models = []
+
     await init_addons(modules)
 
     return {
