@@ -1,0 +1,52 @@
+logger:
+  level: "INFO"
+  log_file: ./papi.log
+
+info:
+  title: "Testing API Server"
+  version: "1.0.0"
+  description: "This is a test API server for testing purposes."
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+
+database:
+  mongodb_uri: "mongodb://root:example@localhost:27017/addons_db?authSource=admin"
+  sql_uri: "postgresql+asyncpg://localhost/my_db"
+  redis_uri: "redis://localhost:6379"
+
+addons:
+  extra_addons_path: "extra_addons"
+  enabled:
+    - image_storage
+    - user_auth_system
+  config:
+    user_auth_system:
+      allow_registration: true
+      defaul_user_roles: user
+      security:
+        access_token_expire_minutes: 60
+        allow_weak_passwords: true
+        lockout_duration_minutes: 15
+        bcrypt_rounds: 15
+        hash_algorithm: "HS256"
+        max_login_attempts: 5
+        secret_key: "the_secret_key"
+        token_audience: bohio.com
+        token_issuer: bohio.com
+        key_rotation:
+          rotation_interval_days: 30
+          max_historical_keys: 3
+    image_storage:
+      image_optimization:
+        max_dimension: 2048 # Maximum width/height for images
+        jpeg_quality: 85    # JPEG compression quality (0-100)
+        png_compression: 6  # PNG compression level (0-9)
+        webp_quality: 80    # WebP quality for conversions
+        force_format: null  # Optional format to convert all images to (e.g. "WEBP")
+
+
+storage:
+  files: "data/files"
+  images: "data/images"
