@@ -1,4 +1,6 @@
-Here's a unified README that combines the best elements from both versions while maintaining clarity and organization:
+<div align="center">
+  <img src="logo.svg" alt="pAPI Logo" width="300"/>
+</div>
 
 # pAPI – Python/Pluggable API Framework
 
