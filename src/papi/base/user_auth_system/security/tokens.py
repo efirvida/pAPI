@@ -7,8 +7,8 @@ from loguru import logger
 from redis.exceptions import LockError
 
 from papi.core.db import get_redis_client
+from user_auth_system.config import security
 
-from . import security
 from .audit import log_security_event_async
 from .enums import AuditLogKeys
 from .key_manager import key_manager

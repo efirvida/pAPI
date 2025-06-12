@@ -7,10 +7,10 @@ from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from pydantic import TypeAdapter
 
+from user_auth_system import config
 from user_auth_system.crud.users import get_user_by_username
 from user_auth_system.schemas import UserInDB
 
-from . import config
 from .audit import log_security_event_async
 from .cache_utils import cache_user, get_cached_user
 from .enforcer import (
@@ -56,13 +56,13 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
     try:
         # Add brute force protection
         await check_auth_rate_limit(token)
-        
+
         payload = await decode_jwt(token)
-        
+
         # Verify token expiration explicitly
         if "exp" not in payload:
             raise jwt.InvalidTokenError("Token has no expiration")
-            
+
     except jwt.ExpiredSignatureError:
         # Don't try historical keys for expired tokens
         raise HTTPException(
@@ -262,13 +262,12 @@ def permission_required(
         auth_request = CasbinRequest(user_attrs, resource_path, action.value)
         temp_enforcer = await build_temp_enforcer(enforcer, auth_request, user)
 
-        allowed = await (
-            debug_enforcement(temp_enforcer, auth_request)
-            if config.logger.level == "DEBUG"
-            else temp_enforcer.enforce(
+        if config.logger.level == "DEBUG":
+            allowed = await debug_enforcement(temp_enforcer, auth_request)
+        else:
+            allowed = temp_enforcer.enforce(
                 auth_request.sub, auth_request.obj, auth_request.act
             )
-        )
 
         await log_permission_result(
             allowed=allowed,

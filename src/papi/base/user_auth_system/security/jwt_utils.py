@@ -4,7 +4,8 @@ import jwt
 from fastapi import HTTPException, status
 from loguru import logger
 
-from . import security
+from user_auth_system.config import security
+
 from .key_manager import key_manager
 
 

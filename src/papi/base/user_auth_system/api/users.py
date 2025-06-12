@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from papi.core.exceptions import APIException
 from papi.core.models.response import APIResponse, create_response
 from papi.core.router import RESTRouter
+from user_auth_system.config import auth_settings
 from user_auth_system.crud.users import (
     create_user,
     delete_user,
@@ -22,7 +23,6 @@ from user_auth_system.schemas import (
     UserSelfUpdate,
     UsersListResponse,
 )
-from user_auth_system.security import auth_settings
 from user_auth_system.security.dependencies import (
     get_current_active_user,
     permission_required,
@@ -51,7 +51,7 @@ async def list_users(
 ):
     """
     List and filter users in the system with comprehensive filtering options.
-    
+
     This endpoint provides paginated access to the user database with multiple filtering options.
     Results are sorted and can be filtered by various user attributes.
     Includes user status, role assignments, and group memberships.
@@ -117,10 +117,10 @@ async def list_users(
 async def create_new_user(user_data: UserCreate):
     """
     Create a new user account in the system.
-    
+
     This endpoint handles new user registration with automatic password hashing,
     role assignment, and validation. Can be disabled system-wide through settings.
-    
+
     The endpoint performs multiple validations:
     - Username/email uniqueness
     - Password strength requirements
@@ -206,7 +206,7 @@ async def get_current_user_info(
 ):
     """
     Retrieve the current authenticated user's public profile and information.
-    
+
     This endpoint allows users to access their own profile information, including
     roles, groups, and permissions. Sensitive data like password hashes are excluded.
 
@@ -253,7 +253,7 @@ async def update_current_user_info(
 ):
     """
     Update the current authenticated user's profile information.
-    
+
     This endpoint allows users to modify their own profile data including email,
     password, and personal information. Certain fields like roles and permissions
     cannot be modified through this endpoint.
@@ -339,7 +339,7 @@ async def remove_current_user(
 ):
     """
     Delete the currently authenticated user's account.
-    
+
     This endpoint allows users to remove their own account from the system.
     The operation is irreversible and removes all user data, roles, and group memberships.
     Superusers/admins are prevented from deleting their own accounts for security.
@@ -394,7 +394,7 @@ async def remove_current_user(
 async def read_user_by_username(username: str):
     """
     Retrieve a user's public profile by their username.
-    
+
     This endpoint allows querying user information by username. It returns the public
     profile information while protecting sensitive data. Useful for user lookups
     and profile viewing.
@@ -454,7 +454,7 @@ async def update_user_by_username(
 ):
     """
     Update an existing user's profile by an administrator.
-    
+
     This endpoint allows administrators to modify user profiles, including sensitive
     fields like activation status and role assignments. Special protections are in
     place for superuser accounts.
