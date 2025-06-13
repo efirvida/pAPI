@@ -9,9 +9,15 @@
             "source.organizeImports": "explicit",
         }
     },
+    "[yaml]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
     "python.analysis.extraPaths": [
         "${workspaceFolder}/src",
-        "${workspaceFolder}/extra_addons"
+        "${workspaceFolder}/src/papi/base",
+        "${workspaceFolder}/addons"
     ],
     "chat.mcp.enabled": true,
     "chat.mcp.discovery.enabled": true,

@@ -154,6 +154,12 @@ class RESTRouter(FastAPIRouter):
     routes_map: Dict[str, APIRoute]
     routes: Sequence[APIRoute]
 
+    def __hash__(self):
+        return hash(id(self))
+
+    def __eq__(self, other):
+        return self is other
+
     def __init__(
         self,
         *,
@@ -424,7 +430,9 @@ class RESTRouter(FastAPIRouter):
                 f"from: {self.routes_map[last_route_added.path].endpoint.__module__}:{self.routes_map[last_route_added.path].endpoint.__name__} -> "
                 f"to: {last_route_added.endpoint.__module__}:{last_route_added.endpoint.__name__}"
             )
-        self.routes_map[last_route_added.path] = last_route_added
+        self.routes_map[
+            f"{','.join(last_route_added.methods)}_{last_route_added.path}"
+        ] = last_route_added
         self.routes = list(self.routes_map.values())
 
     def api_route(

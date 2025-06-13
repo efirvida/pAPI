@@ -1,0 +1,127 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <style>
+            .node-core {
+                fill: url(#core-gradient);
+                stroke: #FFFFFF;
+                stroke-width: 2;
+                filter: drop-shadow(0 0 12px rgba(94, 129, 244, 0.6));
+            }
+            .node-plugin {
+                fill: url(#plugin-gradient);
+                stroke: #FFFFFF;
+                stroke-width: 1.5;
+                filter: drop-shadow(0 0 8px rgba(255, 159, 67, 0.4));
+            }
+            .node-extension {
+                fill: url(#extension-gradient);
+                stroke: #FFFFFF;
+                stroke-width: 1;
+                filter: drop-shadow(0 0 6px rgba(127, 219, 255, 0.3));
+            }
+            .connection-main {
+                stroke: url(#connection-gradient);
+                stroke-width: 3;
+                opacity: 0.8;
+                stroke-dasharray: 1000;
+                stroke-dashoffset: 1000;
+                animation: flow 6s linear infinite;
+            }
+            .connection-secondary {
+                stroke: #A0B0C0;
+                stroke-width: 2;
+                stroke-dasharray: 4 2;
+                opacity: 0.5;
+            }
+            
+            @keyframes flow {
+                to {
+                    stroke-dashoffset: 0;
+                }
+            }
+            
+            .pulse {
+                animation: pulse 2s ease-in-out infinite alternate;
+            }
+            
+            @keyframes pulse {
+                from {
+                    r: 34;
+                }
+                to {
+                    r: 38;
+                }
+            }
+        </style>
+        
+        <!-- Gradientes modernos -->
+        <linearGradient id="core-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#5E81F4"/>
+            <stop offset="100%" stop-color="#1C3EAF"/>
+        </linearGradient>
+        
+        <linearGradient id="plugin-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF9F43"/>
+            <stop offset="100%" stop-color="#FF7B43"/>
+        </linearGradient>
+        
+        <linearGradient id="extension-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#7FDBFF"/>
+            <stop offset="100%" stop-color="#39CCCC"/>
+        </linearGradient>
+        
+        <linearGradient id="connection-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FF9F43"/>
+            <stop offset="50%" stop-color="#5E81F4"/>
+            <stop offset="100%" stop-color="#7FDBFF"/>
+        </linearGradient>
+    </defs>
+
+    <!-- Conexiones principales (orgánicas) -->
+    <g class="connections">
+        <!-- Conexiones desde el núcleo -->
+        <path d="M256,256 C200,180 180,200 150,150" class="connection-main"/>
+        <path d="M256,256 C300,200 350,180 380,120" class="connection-main"/>
+        <path d="M256,256 C220,320 200,350 120,380" class="connection-main"/>
+        <path d="M256,256 C320,300 380,320 400,250" class="connection-main"/>
+        
+        <!-- Interconexiones entre plugins -->
+        <path d="M150,150 Q120,200 180,320" class="connection-secondary"/>
+        <path d="M380,120 L340,180" class="connection-secondary"/>
+        <path d="M400,250 Q380,300 320,350" class="connection-secondary"/>
+    </g>
+
+    <!-- Nodos (disposición orgánica) -->
+    <g class="nodes">
+        <!-- Nodo central con animación de pulso -->
+        <circle cx="256" cy="256" r="36" class="node-core pulse"/>
+        
+        <!-- Nodos principales -->
+        <circle cx="150" cy="150" r="28" class="node-plugin">
+            <animate attributeName="opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite" begin="0.5s"/>
+        </circle>
+        <circle cx="380" cy="120" r="28" class="node-plugin">
+            <animate attributeName="opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite" begin="1s"/>
+        </circle>
+        <circle cx="120" cy="380" r="28" class="node-plugin">
+            <animate attributeName="opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite" begin="1.5s"/>
+        </circle>
+        <circle cx="400" cy="250" r="28" class="node-plugin">
+            <animate attributeName="opacity" values="0.8;1;0.8" dur="3s" repeatCount="indefinite" begin="2s"/>
+        </circle>
+        
+        <!-- Nodos secundarios interconectados -->
+        <circle cx="180" cy="320" r="20" class="node-extension">
+            <animate attributeName="fill" values="#7FDBFF;#39CCCC;#7FDBFF" dur="4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="340" cy="180" r="20" class="node-extension">
+            <animate attributeName="fill" values="#7FDBFF;#39CCCC;#7FDBFF" dur="4s" repeatCount="indefinite" begin="1s"/>
+        </circle>
+        <circle cx="320" cy="350" r="20" class="node-extension">
+            <animate attributeName="fill" values="#7FDBFF;#39CCCC;#7FDBFF" dur="4s" repeatCount="indefinite" begin="2s"/>
+        </circle>
+        <circle cx="220" cy="120" r="20" class="node-extension">
+            <animate attributeName="fill" values="#7FDBFF;#39CCCC;#7FDBFF" dur="4s" repeatCount="indefinite" begin="3s"/>
+        </circle>
+    </g>
+</svg>

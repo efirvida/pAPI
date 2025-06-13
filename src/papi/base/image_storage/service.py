@@ -1,16 +1,19 @@
 import hashlib
-import uuid
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, Optional
+from uuid import UUID
 
 import filetype
-from PIL import ExifTags
+from loguru import logger
 from PIL import Image as PILImage
+from PIL.ExifTags import TAGS
 
 from papi.core.settings import get_config
 
-from .models import Image
+from .config import image_optimization_settings
+from .models import Image, ImageMetadata
+from .optimization import optimize_image
 
 
 class ImageService:
@@ -21,10 +24,13 @@ class ImageService:
 
     def __init__(self) -> None:
         """
-        Initialize the image service with the given root storage directory.
+        Initialize the image service with configuration.
         """
-        storage_root = get_config().storage.images
+        config = get_config()
+        storage_root = config.storage.images or "data/images"
 
+        # Initialize optimization config with defaults
+        self.optimization_config = image_optimization_settings
         self.storage_root = Path(storage_root)
         self.storage_root.mkdir(parents=True, exist_ok=True)
 
@@ -42,37 +48,26 @@ class ImageService:
 
     def _extract_exif(self, image: PILImage.Image) -> Dict[str, Any]:
         """
-        Extracts EXIF metadata from a PIL image object.
-
-        Args:
-            image (PIL.Image.Image): Image to extract EXIF metadata from.
-
-        Returns:
-            Dict[str, Any]: Parsed EXIF metadata.
+        Extract EXIF metadata from a PIL image object safely.
         """
-        exif_data = image._getexif()
-        if not exif_data:
+        try:
+            exif_data = {}
+            if hasattr(image, "getexif") and callable(image.getexif):
+                exif = image.getexif()
+                if exif:
+                    for tag_id in exif:
+                        tag_name = TAGS.get(tag_id, tag_id)
+                        value = exif[tag_id]
+                        if isinstance(value, bytes):
+                            try:
+                                value = value.decode("utf-8")
+                            except UnicodeDecodeError:
+                                value = value.hex()
+                        exif_data[tag_name] = value
+            return exif_data
+        except Exception as e:
+            logger.warning(f"Error extracting EXIF data: {e}")
             return {}
-
-        parsed_exif = {}
-        for tag, value in exif_data.items():
-            tag_name = ExifTags.TAGS.get(tag, tag)
-
-            # Convert numeric tuples or rational types to float
-            if isinstance(value, tuple):
-                value = tuple(float(x) if hasattr(x, "__float__") else x for x in value)
-            elif hasattr(value, "__float__"):
-                value = float(value)
-
-            # Decode bytes to string
-            if isinstance(value, bytes):
-                try:
-                    value = value.decode("utf-8")
-                except UnicodeDecodeError:
-                    value = value.decode("latin-1")
-
-            parsed_exif[tag_name] = value
-        return parsed_exif
 
     def _build_file_path(self, image_id: str, extension: str) -> Path:
         """
@@ -98,6 +93,7 @@ class ImageService:
     ) -> Image:
         """
         Process and save a new image, extracting metadata and avoiding duplicates.
+        Now includes optimization and compression.
 
         Args:
             file_content (bytes): Raw binary content of the image file.
@@ -107,56 +103,54 @@ class ImageService:
         Returns:
             Image: Saved Image document.
         """
-        file_type = filetype.guess(file_content)
-        if not file_type:
-            raise ValueError("Unrecognized file type.")
+        # Optimize the image
+        optimized_content, optimization_info = optimize_image(
+            file_content, self.optimization_config
+        )
 
-        extension = Path(original_filename).suffix.lower()
-        if not extension:
-            extension = f".{file_type.extension}"
+        # Calculate MD5 of optimized content
+        md5_hash = self._calculate_md5(optimized_content)
 
-        md5_hash = self._calculate_md5(file_content)
+        # Check for duplicates
         existing_image = await Image.find_one({"md5": md5_hash})
         if existing_image:
             return existing_image
 
-        image_id = str(uuid.uuid4())
-        file_path = self._build_file_path(image_id, extension)
+        # Load image for metadata extraction
+        img = PILImage.open(BytesIO(optimized_content))
 
-        try:
-            file_path.write_bytes(file_content)
-        except Exception as e:
-            raise IOError(f"Failed to write image to disk: {e}")
-
-        try:
-            with PILImage.open(BytesIO(file_content)) as img:
-                exif_metadata = self._extract_exif(img)
-                width, height = img.size
-        except Exception as e:
-            raise ValueError(f"Unable to read image content: {e}")
-
-        metadata = {
-            **exif_metadata,
-            "width": width,
-            "height": height,
+        # Create ImageMetadata instance
+        metadata = ImageMetadata(
+            width=img.width,
+            height=img.height,
+            format=img.format,
+            mode=img.mode,
+            optimization=optimization_info,
+            exif=self._extract_exif(img),
             **extra_metadata,
-        }
-
-        image = Image(
-            id=image_id,
-            file_name=file_path.stem,
-            file_extension=extension,
-            file_size=len(file_content),
-            md5=md5_hash,
-            file_path=str(file_path.relative_to(self.storage_root)),
-            mime_type=file_type.mime,
-            metadata=metadata,
         )
 
-        await image.insert()
+        # Get file type for mime type
+        file_type = filetype.guess(optimized_content)
+        mime_type = file_type.mime if file_type else "application/octet-stream"
+        extension = file_type.extension if file_type else "bin"
+
+        # Create and save image document to generate UUID
+        image = Image(
+            md5=md5_hash,
+            file_size=len(optimized_content),
+            mime_type=mime_type,
+            metadata=metadata,
+        )
+        await image.save()
+
+        # Save the physical file using the generated UUID
+        file_path = self._build_file_path(str(image.id), f".{extension}")
+        file_path.write_bytes(optimized_content)
+
         return image
 
-    async def get_image_by_id(self, image_id: str) -> Optional[Image]:
+    async def get_image_by_id(self, image_id: UUID) -> Optional[Image]:
         """
         Retrieve image metadata from the database by its ID.
 
@@ -168,7 +162,7 @@ class ImageService:
         """
         return await Image.get(image_id)
 
-    async def get_image_file_path(self, image_id: str) -> Optional[Path]:
+    async def get_image_file_path(self, image_id: UUID) -> Optional[Path]:
         """
         Retrieve the physical path of an image by its ID.
 
@@ -183,7 +177,7 @@ class ImageService:
             return None
         return image.storage_path(storage_root=self.storage_root)
 
-    async def delete_image(self, image_id: str) -> bool:
+    async def delete_image(self, image_id: UUID) -> bool:
         """
         Delete both the image file and its metadata record.
 
