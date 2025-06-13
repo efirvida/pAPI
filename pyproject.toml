@@ -38,10 +38,16 @@ build-backend = "hatchling.build"
 managed = true
 dev-dependencies = [
     "ruff>=0.11.6",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.14",
+    "mkdocstrings[python]>=0.29.1",
+    "mkdocs-autorefs>=1.4.2",
+    "mdx-include>=1.4.2",
+    "markdown-include-variants>=0.0.4",
 ]
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/papi"]
+packages = ["papi"]

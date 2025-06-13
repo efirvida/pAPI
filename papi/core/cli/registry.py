@@ -77,21 +77,21 @@ class CLIRegistry:
             @self._root_group.command()
             def webserver():
                 """Start the production FastAPI web server."""
-                from papi.papi_cli import webserver as ws
+                from papi.cli import webserver as ws
 
                 return ws()
 
             @self._root_group.command()
             def shell():
                 """Launch an interactive Python shell."""
-                from papi.papi_cli import shell as sh
+                from papi.cli import shell as sh
 
                 return sh()
 
             @self._root_group.command()
             def mcpserver():
                 """Start the standalone MCP server."""
-                from papi.papi_cli import mcpserver as mcp
+                from papi.cli import mcpserver as mcp
 
                 return mcp()
 

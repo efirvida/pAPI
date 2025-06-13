@@ -11,12 +11,22 @@ class ImageMetadata(BaseModel):
     Model to store optional metadata extracted from the image.
     """
 
-    width: Optional[int] = None
-    height: Optional[int] = None
-    format: Optional[str] = None
-    mode: Optional[str] = None
-    exif: dict = Field(default_factory=dict)
-    optimization: dict = Field(default_factory=dict)
+    width: Optional[int] = Field(
+        default=None, description="Width of the image in pixels."
+    )
+    height: Optional[int] = Field(
+        default=None, description="Height of the image in pixels."
+    )
+    format: Optional[str] = Field(
+        default=None, description="Image format (e.g., JPEG, PNG)."
+    )
+    mode: Optional[str] = Field(default=None, description="Color mode (e.g., RGB, L).")
+    exif: dict = Field(
+        default_factory=dict, description="EXIF metadata extracted from the image."
+    )
+    optimization: dict = Field(
+        default_factory=dict, description="Optimization data for image compression."
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -24,11 +34,15 @@ class ImageMetadata(BaseModel):
 class Image(Document):
     """Image document model for storing image metadata and file references."""
 
-    id: UUID = Field(default_factory=uuid4, alias="_id")
-    md5: str = Field(index=True)
-    file_size: int
-    mime_type: str
-    metadata: ImageMetadata
+    id: UUID = Field(
+        default_factory=uuid4,
+        alias="_id",
+        description="Unique image identifier (UUID).",
+    )
+    md5: str = Field(index=True, description="MD5 checksum of the image file.")
+    file_size: int = Field(description="Size of the image file in bytes.")
+    mime_type: str = Field(description="MIME type of the image (e.g., image/png).")
+    metadata: ImageMetadata = Field(description="Embedded image metadata.")
 
     def storage_path(self, storage_root: Path) -> Path:
         """Get the physical storage path for this image."""
