@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 
 from casbin import AsyncEnforcer
@@ -15,22 +16,24 @@ async def start_redis_policy_listener(enforcer: AsyncEnforcer) -> None:
     """
     Starts a listener on a Redis Pub/Sub channel to detect policy updates.
 
-    When a message is received on the corresponding channel, the policy is reloaded in the enforcer.
-
-    Args:
-        enforcer (AsyncEnforcer): Instance of the Casbin enforcer to be updated.
+    The listener is launched as a background task to avoid blocking the event loop.
     """
-    redis_client = await get_redis_client()
-    pubsub = redis_client.pubsub()
-    await pubsub.subscribe(POLICY_UPDATE_CHANNEL)
 
-    logger.info("Subscribed to Redis channel for policy updates")
+    async def _listen() -> None:
+        redis_client = await get_redis_client()
+        pubsub = redis_client.pubsub()
+        await pubsub.subscribe(POLICY_UPDATE_CHANNEL)
 
-    async for message in pubsub.listen():
-        if message["type"] == "message":
-            logger.info("Policy update received from Redis")
-            await enforcer.load_policy()
-            logger.info("Policies reloaded")
+        logger.info("Subscribed to Redis channel for policy updates")
+
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                logger.info("Policy update received from Redis")
+                await enforcer.load_policy()
+                logger.info("Policies reloaded")
+
+    # Launch the listener in the background
+    asyncio.create_task(_listen())
 
 
 async def add_policy(policy: PolicyCreate) -> bool:
