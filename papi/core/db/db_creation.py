@@ -1,3 +1,11 @@
+"""
+This module provides utilities for checking and creating a SQL database
+if it does not already exist. It supports PostgreSQL, MySQL, MariaDB, and SQLite.
+
+The main entrypoint is `create_database_if_not_exists`, which runs a safe
+check-and-create operation using a synchronous driver in a background thread.
+"""
+
 import asyncio
 
 from loguru import logger
@@ -7,6 +15,18 @@ from sqlalchemy.exc import SQLAlchemyError
 
 
 def _sync_driver_url(db_url: str) -> str:
+    """
+    Convert an async database URL into its synchronous equivalent.
+
+    This is useful for using synchronous SQLAlchemy engines with async-style URLs
+    (e.g., `postgresql+asyncpg` → `postgresql+psycopg2`).
+
+    Args:
+        db_url (str): Original database URI using an async driver.
+
+    Returns:
+        str: Converted URI using a sync-compatible driver.
+    """
     url = make_url(db_url)
     if url.drivername == "postgresql+asyncpg":
         return url.set(drivername="postgresql+psycopg2").render_as_string(
@@ -22,6 +42,26 @@ def _sync_driver_url(db_url: str) -> str:
 
 
 def create_database_if_not_exists_sync(db_url: str) -> None:
+    """
+    Check if a database exists, and create it if not.
+
+    Supports PostgreSQL, MySQL, MariaDB, and SQLite. For SQLite,
+    the function logs that no manual creation is required.
+
+    Args:
+        db_url (str): The full database URI.
+
+    Raises:
+        ValueError: If the database name is missing in the URI.
+        RuntimeError: If creation fails due to SQL or unexpected errors.
+
+    Example:
+        ```python
+        create_database_if_not_exists_sync(
+            "postgresql+asyncpg://user:pass@localhost/dbname"
+        )
+        ```
+    """
     try:
         sync_url = _sync_driver_url(db_url)
         url = make_url(sync_url)
@@ -80,5 +120,21 @@ def create_database_if_not_exists_sync(db_url: str) -> None:
 
 
 async def create_database_if_not_exists(db_url: str) -> None:
+    """
+    Asynchronously check and create the database if it does not exist.
+
+    Internally runs `create_database_if_not_exists_sync` in a thread executor
+    to remain non-blocking in async applications.
+
+    Args:
+        db_url (str): The database URI.
+
+    Example:
+        ```python
+        await create_database_if_not_exists(
+            "postgresql+asyncpg://user:pass@localhost/dbname"
+        )
+        ```
+    """
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, create_database_if_not_exists_sync, db_url)
