@@ -1,0 +1,27 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      
+      - name: Install the latest version of rye
+        uses: eifinger/setup-rye@v4.2.9
+
+      - name: Install dependencies with Rye
+        run: rye sync
+      
+      - name: Deploy MkDocs site
+        run: rye run mkdocs gh-deploy --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
