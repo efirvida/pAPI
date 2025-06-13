@@ -42,5 +42,6 @@ class ImageStorageConfig(BaseModel):
 
 
 config = get_config()
-images_settings = ImageStorageConfig(**config.addons.config["image_storage"])
+main_config = config.addons.config.get("image_storage", {})
+images_settings = ImageStorageConfig(**main_config)
 image_optimization_settings = images_settings.image_optimization
