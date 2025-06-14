@@ -1,35 +1,3 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <url>
-         <loc>https://efirvida.github.io/papi/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
-    <url>
-         <loc>https://efirvida.github.io/papi/build-in-addons/image_storage/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
-    <url>
-         <loc>https://efirvida.github.io/papi/build-in-addons/user_auth_system/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
-    <url>
-         <loc>https://efirvida.github.io/papi/reference/cli/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
-    <url>
-         <loc>https://efirvida.github.io/papi/reference/db/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
-    <url>
-         <loc>https://efirvida.github.io/papi/reference/models/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
-    <url>
-         <loc>https://efirvida.github.io/papi/reference/router/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
-    <url>
-         <loc>https://efirvida.github.io/papi/reference/settings/</loc>
-         <lastmod>2025-06-14</lastmod>
-    </url>
 </urlset>
