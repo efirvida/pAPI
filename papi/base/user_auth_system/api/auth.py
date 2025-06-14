@@ -8,8 +8,8 @@ from loguru import logger
 
 from papi.core.exceptions import APIException
 from papi.core.router import RESTRouter
+from user_auth_system.config import security
 from user_auth_system.schemas import Token
-from user_auth_system.security import security
 from user_auth_system.security.auth import authenticate_user
 from user_auth_system.security.dependencies import PREFIX
 from user_auth_system.security.tokens import create_access_token

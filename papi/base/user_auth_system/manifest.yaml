@@ -27,3 +27,4 @@ python_dependencies:
   - casbin
   - pyjwt[crypto]
   - pydantic[email]
+  - pydantic-settings

@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from papi.core.db import get_sql_session
+from user_auth_system.config import auth_settings
 from user_auth_system.crud.roles import create_role
 from user_auth_system.models import Group, Role, User
 from user_auth_system.schemas import (
@@ -16,7 +17,6 @@ from user_auth_system.schemas import (
     UserCreate,
     UserInDB,
 )
-from user_auth_system.security import auth_settings
 from user_auth_system.security.casbin_policies import add_policy
 from user_auth_system.security.enums import PolicyAction, PolicyEffect
 from user_auth_system.security.password import hash_password

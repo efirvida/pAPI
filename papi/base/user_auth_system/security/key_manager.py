@@ -3,9 +3,8 @@ from typing import List, Tuple
 
 import jwt
 
+from user_auth_system.config import security
 from user_auth_system.schemas.auth import KeyRotation
-
-from . import security
 
 KEY_ROTATION_CONFIG: KeyRotation = security.key_rotation
 

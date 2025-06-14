@@ -187,6 +187,6 @@ class AppConfig(BaseModel):
     logger: LoggerConfig
     info: GeneralInfoConfig
     server: ServerConfig
-    database: DatabaseConfig
     addons: AddonsConfig
-    storage: StorageConfig
+    database: DatabaseConfig | None = None
+    storage: StorageConfig | None = None

@@ -1,8 +1,8 @@
 from loguru import logger
 
 from papi.core.db import get_redis_client
+from user_auth_system.config import security
 
-from . import security
 from .audit import log_security_event_async
 from .enums import AuditLogKeys
 

@@ -3,7 +3,7 @@ import re
 import bcrypt
 from fastapi import HTTPException, status
 
-from . import auth_settings, security
+from user_auth_system.config import auth_settings, security
 
 MIN_PASSWORD_LENGTH = auth_settings.password_min_length
 PASSWORD_VALIDATION_RULES = [

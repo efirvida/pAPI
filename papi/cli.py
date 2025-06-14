@@ -169,16 +169,21 @@ async def run_api_server(app: FastAPI) -> Generator[None, None, None]:
         app.mount("/", mcp_server, name="MCP Tools")
 
         config = get_config()
-        for name, path in config.storage.model_dump().items():
-            os.makedirs(path, exist_ok=True)
-            app.mount(
-                f"/{name}", StaticFiles(directory=path), name=f"Global {name} Storage"
-            )
-            logger.info(f"Storage '{name}' configured at: {path}")
+        if config.storage:
+            for name, path in config.storage.model_dump().items():
+                os.makedirs(path, exist_ok=True)
+                app.mount(
+                    f"/{name}",
+                    StaticFiles(directory=path),
+                    name=f"Global {name} Storage",
+                )
+                logger.info(f"Storage '{name}' configured at: {path}")
 
         yield
         logger.info("Closing redis connection...")
-        await redis.aclose()
+        redis = await get_redis_client()
+        if redis:
+            await redis.aclose()
 
     except Exception as e:
         logger.critical(f"Initialization error: {e}")

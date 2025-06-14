@@ -2,7 +2,8 @@ from fastapi import status
 from sqlalchemy.exc import IntegrityError
 
 from papi.core.exceptions import APIException
-from papi.core.models.response import APIResponse, create_response
+from papi.core.models.response import APIResponse
+from papi.core.response import create_response
 from papi.core.router import RESTRouter
 from user_auth_system.crud.roles import (
     create_role,

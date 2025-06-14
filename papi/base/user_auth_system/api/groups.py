@@ -2,7 +2,8 @@ from fastapi import Path, status
 from sqlalchemy.exc import IntegrityError
 
 from papi.core.exceptions import APIException
-from papi.core.models.response import APIResponse, create_response
+from papi.core.models.response import APIResponse
+from papi.core.response import create_response
 from papi.core.router import RESTRouter
 from user_auth_system.crud.groups import (
     create_group,
@@ -25,7 +26,7 @@ router = RESTRouter(prefix="/groups", tags=["Users Management & Access Control"]
 async def list_groups() -> APIResponse:
     """
     Retrieve a list of all user groups in the system.
-    
+
     This endpoint provides a comprehensive list of all user groups with their basic information.
     Access to this endpoint requires root privileges or specific read permissions.
     Groups are essential for role-based access control and permission management.
@@ -69,7 +70,7 @@ async def list_groups() -> APIResponse:
 async def create_new_group(group: GroupCreate) -> APIResponse:
     """
     Create a new user group in the system.
-    
+
     This endpoint allows creation of new groups for organizing users and managing permissions.
     Groups are fundamental components of the RBAC system and can be assigned specific permissions.
 
@@ -137,7 +138,7 @@ async def update_existing_group(
 ) -> APIResponse:
     """
     Update an existing group's information by its ID.
-    
+
     This endpoint allows modification of group details while maintaining group relationships
     and permissions. The update operation is atomic and validates all constraints.
 
@@ -198,7 +199,7 @@ async def delete_existing_group(
 ) -> APIResponse:
     """
     Delete an existing group from the system.
-    
+
     This endpoint permanently removes a group and all its associations.
     The operation will fail if the group doesn't exist or if it's a protected system group.
     Group deletion will automatically remove all group memberships but won't affect users.
