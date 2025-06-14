@@ -24,7 +24,7 @@ def get_redis_uri_with_db(base_uri: str, db_index: int) -> str:
     return urlunparse(parsed._replace(path=new_path))
 
 
-async def get_redis_client() -> Redis:
+async def get_redis_client() -> Redis | None:
     """
     Lazily initialize and return a singleton Redis client.
 
@@ -34,9 +34,11 @@ async def get_redis_client() -> Redis:
         Redis: An asyncio-compatible Redis client instance.
     """
     global _redis
+    config = get_config()
     if _redis is None:
-        _redis = from_url(
-            get_config().database.redis_uri,
-            decode_responses=True,
-        )
+        if config.database and config.database.redis_uri:
+            _redis = from_url(
+                config.database.redis_uri,
+                decode_responses=True,
+            )
     return _redis

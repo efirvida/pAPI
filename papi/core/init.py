@@ -212,16 +212,22 @@ async def init_base_system(init_db_system: bool = True) -> dict:
         addon = addons_graph.addons[addon_id]
         logger.debug(f"  → {addon.name} (v{addon.version}) by {addon.authors}")
 
-    # Initialize MongoDB (if applicable)
-    if init_db_system and config.database.mongodb_uri:
+    if init_db_system and config.database:
         # Init MongoDB Documents, and Beanie models on system Startup.
-        beanie_document_models = await init_mongodb(config, modules)
+        if config.database.mongodb_uri:
+            beanie_document_models = await init_mongodb(config, modules)
+        else:
+            beanie_document_models = []
 
         # Init SQL models and create tables on system Startup if tables not exist
-        sql_models = await init_sqlalchemy(config, modules)
+        if config.database.sql_uri:
+            sql_models = await init_sqlalchemy(config, modules)
+        else:
+            sql_models = []
 
         # cache Redis client on startup
-        await get_redis_client()
+        if config.database.redis_uri:
+            await get_redis_client()
     else:
         beanie_document_models = []
         sql_models = []
