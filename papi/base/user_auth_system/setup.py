@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from papi.core.addons import AddonSetupHook
 from papi.core.db import get_sql_session
+from papi.core.settings import get_config
 from user_auth_system.models import Role, User
 from user_auth_system.schemas.policy import PolicyCreate
 from user_auth_system.schemas.root import RootUserEnv
@@ -19,6 +21,9 @@ from user_auth_system.security.casbin_policies import (
 from user_auth_system.security.enforcer import get_enforcer
 from user_auth_system.security.enums import PolicyAction, PolicyEffect
 from user_auth_system.security.password import hash_password, verify_password
+
+config = get_config()
+logger = logging.getLogger(__name__)
 
 # RFC 5322 compliant email validation regex (simplified version)
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
