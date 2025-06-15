@@ -1,6 +1,6 @@
 import os
 from types import ModuleType
-from typing import Callable, Type
+from typing import Callable, Optional, Type
 
 from beanie import init_beanie
 from mcp.server.fastmcp import FastMCP
@@ -8,6 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeMeta
@@ -22,7 +23,11 @@ from papi.core.addons import (
     get_sqlalchemy_models_from_addon,
     load_and_import_all_addons,
 )
-from papi.core.db import create_database_if_not_exists, get_redis_client
+from papi.core.db import (
+    create_database_if_not_exists,
+    extract_bases_from_models,
+    get_redis_client,
+)
 from papi.core.logger import logger
 from papi.core.mcp import create_sse_server
 from papi.core.router import MPCRouter
@@ -106,25 +111,25 @@ async def init_sqlalchemy(
     config,
     modules: dict[str, ModuleType],
     create_tables: bool = True,
-) -> dict[str, Type[DeclarativeMeta]] | None:
+) -> Optional[dict[str, Type[DeclarativeMeta]]]:
     """
-    Initializes SQLAlchemy if models are found and configuration is valid.
+    Initializes SQLAlchemy models from addon modules and optionally creates tables
+    for all detected Base metadata classes.
 
     Args:
-        config: Configuration object with database info.
-        modules: Dictionary of loaded addon modules.
-        create_tables: Whether to create tables automatically.
+        config: Configuration object with database URI.
+        modules: Dictionary of addon modules.
+        create_tables: Whether to automatically create tables in DB.
 
     Returns:
-        Dictionary of model names to model classes
-        Or None if no models were found.
+        Dict mapping model names to model classes, or None if no models found.
 
     Raises:
-        RuntimeError: If models are found but no DB URI is configured, or if connection fails.
+        RuntimeError: If DB URI missing or SQLAlchemy initialization fails.
     """
     sqlalchemy_models: dict[str, Type[DeclarativeMeta]] = {}
 
-    logger.info("Searching for SQL models in active addons")
+    logger.info("Searching for SQLAlchemy models in active addons")
     for addon_id, module in modules.items():
         addon_models = get_sqlalchemy_models_from_addon(module)
         if addon_models:
@@ -132,39 +137,47 @@ async def init_sqlalchemy(
             logger.debug(
                 f"  → SQLAlchemy models from '{addon_id}': {', '.join(model_names)}"
             )
-            sqlalchemy_models.update(dict(zip(model_names, addon_models)))
+            sqlalchemy_models.update({
+                name: model for name, model in zip(model_names, addon_models)
+            })
 
     if not sqlalchemy_models:
-        logger.info("No SQL models found. Skipping SQLAlchemy initialization.")
+        logger.info("No SQLAlchemy models found. Skipping SQLAlchemy initialization.")
         return None
 
     if not config.database.sql_uri:
-        logger.error("Found SQL models but SQL connection URI is not configured.")
-        raise RuntimeError("SQLAlchemy URI required to initialize SQLAlchemy models.")
+        logger.error("SQL models found but no SQL URI configured.")
+        raise RuntimeError("SQLAlchemy URI is required to initialize database models.")
+
+    bases = extract_bases_from_models(sqlalchemy_models)
 
     try:
-        # Ensure database exists
         await create_database_if_not_exists(config.database.sql_uri)
 
-        # Create async engine and sessionmaker
-        engine = create_async_engine(config.database.sql_uri, echo=False, future=True)
+        engine: AsyncEngine = create_async_engine(
+            config.database.sql_uri, echo=False, future=True
+        )
 
         logger.info(
-            f"SQLAlchemy engine and session initialized with {len(sqlalchemy_models)} models."
+            f"SQLAlchemy engine initialized with {len(sqlalchemy_models)} models."
         )
 
         if create_tables:
-            # Get metadata from any model (they should all share the same metadata)
-            metadata = next(iter(sqlalchemy_models.values())).metadata
-
-            async with engine.begin() as conn:
-                await conn.run_sync(metadata.create_all)
-            logger.info("All SQLAlchemy tables created.")
+            if not bases:
+                logger.warning(
+                    "No Base classes detected to create tables for. Skipping table creation."
+                )
+            else:
+                async with engine.begin() as conn:
+                    for base in bases:
+                        logger.debug(f"Creating tables for Base: {base}")
+                        await conn.run_sync(base.metadata.create_all)
+                logger.info("All tables for specified Base(s) created successfully.")
 
         return sqlalchemy_models
 
     except SQLAlchemyError as exc:
-        logger.exception("SQLAlchemy initialization error.")
+        logger.exception("SQLAlchemy initialization failed.")
         raise RuntimeError(f"SQLAlchemy initialization error: {exc!r}")
 
 
