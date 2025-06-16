@@ -1,0 +1,7 @@
+name: weather
+version: 1.0.0
+description: Weather data API with authentication
+author: Your Name
+
+python_dependencies:
+  - "requests>=2.28.0"
