@@ -6,3 +6,4 @@ from .registration import *
 from .role import *
 from .root import *
 from .user import *
+from .user_devices import *

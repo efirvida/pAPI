@@ -7,12 +7,16 @@ from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from pydantic import TypeAdapter
 
-from user_auth_system import config
+from user_auth_system.config import config
 from user_auth_system.crud.users import get_user_by_username
 from user_auth_system.schemas import UserInDB
+from user_auth_system.security.tokens import is_access_token_revoked
 
 from .audit import log_security_event_async
-from .cache_utils import cache_user, get_cached_user
+from .cache_utils import (
+    cache_user,
+    get_cached_user,
+)
 from .enforcer import (
     CasbinRequest,
     build_temp_enforcer,
@@ -20,12 +24,12 @@ from .enforcer import (
     get_enforcer,
 )
 from .enums import AuditLogKeys, PolicyAction
-from .jwt_utils import decode_jwt, try_historical_keys
+from .jwt_utils import validate_token
 from .rate_limit import check_auth_rate_limit
 
 PREFIX = "/auth"
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{PREFIX}/token",
+    tokenUrl=f"{PREFIX}/login",
     scheme_name="JWT",
     auto_error=False,  # Let the dependency handle the error
 )
@@ -34,7 +38,18 @@ oauth2_scheme = OAuth2PasswordBearer(
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> UserInDB:
     """
     Retrieves and authenticates the current user from a JWT token.
-    If the token is valid, fetches user information from cache or DB.
+    Implements multiple security layers including token validation,
+    revocation checking, and rate limiting.
+
+    Security Features:
+    - Token presence validation
+    - Rate limiting for authentication attempts
+    - JWT signature verification
+    - Expiration validation
+    - Token revocation (blacklist) check
+    - Historical key rotation support
+    - Cache-first user lookup
+    - Secure error handling
 
     Args:
         token (str): JWT token provided in the Authorization header.
@@ -43,10 +58,11 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         UserInDB: Authenticated user model.
 
     Raises:
-        HTTPException: For missing or invalid token, or if user not found.
+        HTTPException: For any authentication failure
     """
+    # Validate token presence
     if not token:
-        # Don't expose specific authentication errors
+        logger.warning("Authentication attempt without token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
@@ -54,64 +70,120 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         )
 
     try:
-        # Add brute force protection
+        # Brute force protection - rate limit token verification attempts
         await check_auth_rate_limit(token)
 
-        payload = await decode_jwt(token)
+        # Decode and verify token with current key
+        payload = validate_token(token, "access")
 
-        # Verify token expiration explicitly
+        # Validate critical claims
+        jti = payload.get("jti")
+        if not jti:
+            logger.error(f"Token missing jti claim: {token[:20]}...")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+
         if "exp" not in payload:
-            raise jwt.InvalidTokenError("Token has no expiration")
+            logger.error(f"Token missing expiration claim: {token[:20]}...")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+
+        # Check token revocation status
+        if await is_access_token_revoked(jti):
+            logger.info(f"Token revocado detectado: {jti}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token revoked",
+            )
 
     except jwt.ExpiredSignatureError:
-        # Don't try historical keys for expired tokens
+        # Special handling for expired tokens (don't try historical keys)
+        logger.info(f"Expired token attempt: {token[:20]}...")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
         )
-    except jwt.InvalidSignatureError:
-        # Log potential tampering attempts
-        logger.warning("Invalid token signature detected")
-        payload = await try_historical_keys(token)
-    except jwt.PyJWTError:
-        # Don't expose internal JWT errors
+
+    except jwt.PyJWTError as e:
+        # Generic JWT error handling
+        logger.warning(f"JWT validation error: {str(e)} - Token: {token[:20]}...")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         )
 
+    except HTTPException:
+        # Re-raise our own exceptions
+        raise
+
+    except Exception as e:
+        # Catch-all for unexpected errors
+        logger.error(f"Unexpected authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal authentication error",
+        )
+
+    # Validate subject claim
     username = payload.get("sub")
     if not username:
-        logger.error("Token missing subject claim")
+        logger.error(f"Token missing subject claim: {token[:20]}...")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token claims",
         )
 
-    # Try to get from cache first
+    # User retrieval - cache-first strategy
     user = None
     try:
-        cached = await get_cached_user(username)
-        if cached:
-            user = TypeAdapter(UserInDB).validate_json(cached)
-    except Exception:
-        # Skip logging cache errors to reduce overhead
-        pass
+        # Try to get user from cache
+        cached_data = await get_cached_user(username)
+        if cached_data:
+            user = TypeAdapter(UserInDB).validate_json(cached_data)
+            logger.debug(f"User {username} retrieved from cache")
+    except Exception as e:
+        logger.warning(f"Cache read error for {username}: {str(e)}")
 
-    # If not in cache, fetch from DB
+    # Fallback to database if not in cache
     if not user:
-        user = await get_user_by_username(username)
-        if not user:
+        try:
+            user = await get_user_by_username(username)
+            if not user:
+                logger.warning(f"User not found in DB: {username}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid credentials",
+                )
+
+            # Cache user for future requests
+            try:
+                await cache_user(username, user.model_dump_json())
+                logger.debug(f"Cached user data for {username}")
+            except Exception as e:
+                logger.warning(f"Cache write error for {username}: {str(e)}")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Database error for {username}: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service unavailable",
             )
 
-        # Only try to cache if fetched from DB
-        try:
-            await cache_user(username, user.model_dump_json())
-        except Exception:
-            # Continue without logging cache failures
-            pass
+    # # Additional security check: validate token issue time against user's last password change
+    # if security.validate_token_against_password_change:
+    #     token_iat = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+    #     if user.password_changed_at and token_iat < user.password_changed_at:
+    #         logger.info(f"Token issued before password change for {username}")
+    #         raise HTTPException(
+    #             status_code=status.HTTP_401_UNAUTHORIZED,
+    #             detail="Token invalidated by password change",
+    #         )
 
     return user
 

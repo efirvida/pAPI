@@ -13,6 +13,7 @@ from user_auth_system.crud.users import (
     delete_user,
     get_all_users,
     get_user_by_username,
+    get_user_devices,
     update_user,
 )
 from user_auth_system.schemas import (
@@ -30,6 +31,10 @@ from user_auth_system.security.dependencies import (
 )
 from user_auth_system.security.enums import PolicyAction
 from user_auth_system.security.password import hash_password
+from user_auth_system.security.tokens import (
+    revoke_access_token_by_device_id,
+    revoke_refresh_token,
+)
 
 router = RESTRouter(prefix="/user", tags=["Users Management & Access Control"])
 
@@ -240,6 +245,44 @@ async def get_current_user_info(
     """
     return create_response(
         data=format_user_public(current_user), message="User retrieved successfully."
+    )
+
+
+@router.get(
+    "/me/devices",
+    response_model=APIResponse,
+    dependencies=[permission_required(PolicyAction.READ)],
+)
+async def get_current_user_devices(
+    current_user: Annotated[UserRead, Depends(get_current_active_user)],
+):
+    """
+    Retrieves all registered devices with active refresh tokens.
+    """
+    return create_response(
+        data=await get_user_devices(current_user.username),
+        message="User devices retrieved successfully.",
+    )
+
+
+@router.post(
+    "/me/devices/{session_id}/{device_id}/logout",
+    response_model=APIResponse,
+    dependencies=[permission_required(PolicyAction.READ)],
+)
+async def logout_current_user_device(
+    device_id: str,
+    session_id: str,
+    current_user: Annotated[UserRead, Depends(get_current_active_user)],
+):
+    """
+    Retrieves all registered devices with active refresh tokens.
+    """
+    await revoke_refresh_token(refresh_jti=session_id)
+    await revoke_access_token_by_device_id(device_id=device_id)
+    return create_response(
+        data=await get_user_devices(current_user.username),
+        message=f"Device {device_id} logged out",
     )
 
 

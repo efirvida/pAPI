@@ -10,7 +10,9 @@ from papi.core.db import get_sql_session
 from user_auth_system.config import auth_settings
 from user_auth_system.crud.roles import create_role
 from user_auth_system.models import Group, Role, User
+from user_auth_system.models.token import RefreshToken
 from user_auth_system.schemas import (
+    Device,
     PolicyCreate,
     RoleCreate,
     RoleRead,
@@ -296,3 +298,25 @@ async def get_all_users(
             "users": [UserInDB.model_validate(user) for user in users],
             "total": total_count,
         }
+
+
+async def get_user_devices(username: str) -> List[Device]:
+    devices = []
+    async with get_sql_session() as session:
+        query = (
+            select(RefreshToken)
+            .where(RefreshToken.subject == username)
+            .where(RefreshToken.revoked.is_(False))
+        )
+        tokens = await session.execute(query)
+        for token in tokens.scalars():
+            devices.append(
+                Device(
+                    session_id=token.jti,
+                    device_id=token.device_id,
+                    user_agent=token.user_agent,
+                    expires_at=token.expires_at,
+                    created_at=token.created_at,
+                )
+            )
+    return devices

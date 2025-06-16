@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -20,18 +19,21 @@ from user_auth_system.security.casbin_policies import (
 )
 from user_auth_system.security.enforcer import get_enforcer
 from user_auth_system.security.enums import PolicyAction, PolicyEffect
-from user_auth_system.security.password import hash_password, verify_password
+from user_auth_system.security.key_manager import key_manager
+from user_auth_system.security.password import hash_password
+from user_auth_system.security.tokens import cleanup_expired_tokens
 
 config = get_config()
-logger = logging.getLogger(__name__)
 
-# RFC 5322 compliant email validation regex (simplified version)
-EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+# RFC 5322 compliant email validation regex
+EMAIL_REGEX = re.compile(
+    r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$"
+)
 
 
 def is_valid_email(email: str) -> bool:
     """
-    Validate email format using RFC 5322 compliant regex.
+    Validates email format against RFC 5322 specification.
 
     Args:
         email: Email address to validate
@@ -44,16 +46,17 @@ def is_valid_email(email: str) -> bool:
 
 async def init_root_policies(root_env: RootUserEnv) -> None:
     """
-    Initialize default Casbin policies granting full access to:
-    1. The root username directly
-    2. Any user with the root role
+    Initializes default access policies for root user and root role.
+
+    Policies grant:
+    - Full access to root username
+    - Full access to root role members
 
     Args:
-        root_env: Root environment configuration object
+        root_env: Root environment configuration
 
     Raises:
         RuntimeError: If policy initialization fails
-        ValueError: For invalid policy configuration
     """
     try:
         # Policy for direct root user access
@@ -63,6 +66,7 @@ async def init_root_policies(root_env: RootUserEnv) -> None:
             action=PolicyAction.ALL,
             condition="True",
             effect=PolicyEffect.ALLOW,
+            description="Root user full access policy",
         )
 
         # Policy for root role access
@@ -72,67 +76,68 @@ async def init_root_policies(root_env: RootUserEnv) -> None:
             action=PolicyAction.ALL,
             condition="True",
             effect=PolicyEffect.ALLOW,
+            description="Root role full access policy",
         )
 
         await add_policy(root_user_policy)
         await add_policy(root_role_policy)
         logger.info("Root access policies initialized successfully")
 
-    except ValueError as ve:
-        logger.error(f"Policy configuration error: {ve}")
-        raise
     except Exception as e:
-        logger.exception("Unexpected error during policy initialization")
+        logger.critical(f"Policy initialization failed: {str(e)}")
         raise RuntimeError("Root policy initialization failed") from e
 
 
 class AuthSystemInitializer(AddonSetupHook):
     """
-    System initialization hook for authentication subsystem. Handles:
-    - Root user creation
+    Authentication system initialization hook. Handles:
     - Root role creation
-    - Casbin policy initialization
-    - Security warnings for production environments
+    - Root user creation
+    - Access policy initialization
+    - Security warnings for sensitive configurations
 
-    Supports both empty-system initialization and environment-based configuration.
+    Execution is idempotent and only runs on first system startup.
     """
 
     async def _create_root_role(
         self, root_env: RootUserEnv, session: AsyncSession
     ) -> Role:
         """
-        Ensure the root role exists in the database (idempotent operation).
+        Ensures the root role exists in the database (idempotent).
 
         Args:
             root_env: Root environment configuration
-            session: Async database session
+            session: Database session
 
         Returns:
-            Existing or newly created Role instance
+            Existing or created root Role instance
 
         Raises:
             RuntimeError: If database operation fails
         """
         try:
-            root_role = await session.scalar(
-                select(Role).where(Role.name == root_env.role_name).limit(1)
+            # Check for existing role
+            existing_role = await session.scalar(
+                select(Role).where(Role.name == root_env.role_name)
             )
 
-            if not root_role:
-                root_role = Role(
-                    name=root_env.role_name,
-                    description="Superadmin role with full system access",
-                )
-                session.add(root_role)
-                await session.commit()
-                logger.info(f"Created root role: {root_env.role_name}")
-            else:
+            if existing_role:
                 logger.debug(f"Root role already exists: {root_env.role_name}")
+                return existing_role
 
-            return root_role
+            # Create new role
+            new_role = Role(
+                name=root_env.role_name,
+                description="System super-administrator role with full privileges",
+                is_protected=True,  # Prevent accidental deletion
+            )
+            session.add(new_role)
+            await session.commit()
+            logger.info(f"Created root role: {root_env.role_name}")
+            return new_role
 
         except SQLAlchemyError as e:
-            logger.exception("Failed to create root role")
+            logger.error("Root role creation failed")
             await session.rollback()
             raise RuntimeError("Database error during role creation") from e
 
@@ -140,10 +145,10 @@ class AuthSystemInitializer(AddonSetupHook):
         self, session: AsyncSession, root_env: RootUserEnv, role: Role
     ) -> None:
         """
-        Create root user with hashed credentials and superuser privileges.
+        Creates root user account with secure credentials.
 
         Args:
-            session: Async database session
+            session: Database session
             root_env: Root environment configuration
             role: Root role instance
 
@@ -151,14 +156,23 @@ class AuthSystemInitializer(AddonSetupHook):
             RuntimeError: If user creation fails
             ValueError: For invalid email format
         """
-        # Validate email format before creation
+        # Validate email format
         if not is_valid_email(root_env.email):
             raise ValueError(f"Invalid root email format: {root_env.email}")
 
         try:
-            root_user = User(
+            # Check for existing user
+            existing_user = await session.scalar(
+                select(User).where(User.username == root_env.username)
+            )
+            if existing_user:
+                logger.debug(f"Root user already exists: {root_env.username}")
+                return
+
+            # Create new root user
+            new_user = User(
                 username=root_env.username,
-                full_name="Root Administrator",
+                full_name="System Administrator",
                 email=root_env.email,
                 hashed_password=hash_password(root_env.password),
                 created_at=datetime.now(timezone.utc),
@@ -166,77 +180,59 @@ class AuthSystemInitializer(AddonSetupHook):
                 roles=[role],
                 is_active=True,
                 is_superuser=True,
+                is_protected=True,  # Prevent accidental deletion
             )
-            session.add(root_user)
+            session.add(new_user)
             await session.commit()
-            logger.info(f"Root user created: {root_env.username}")
+            logger.info(f"Created root user: {root_env.username}")
 
         except SQLAlchemyError as e:
-            logger.exception("Failed to create root user")
+            logger.error("Root user creation failed")
             await session.rollback()
             raise RuntimeError("Database error during user creation") from e
 
     async def _warn_env_exposure(self, root_env: RootUserEnv) -> None:
         """
-        Generate security warnings about .env file exposure if:
-        - .env file exists
-        - Contains root credentials
+        Generates security warnings about .env file exposure if credentials exist.
 
         Args:
             root_env: Root environment configuration
         """
-        if not os.path.exists(".env"):
+        env_path = ".env"
+        if not os.path.exists(env_path):
             return
 
         warning_msg = (
-            f"⚠️  SECURITY WARNING: Environment file '.env' contains active "
-            f"credentials for root user '{root_env.username}'. "
-            f"Remove root credentials from '.env' in production environments "
-            f"to prevent unauthorized access. ⚠️"
+            "SECURITY WARNING: Environment file '.env' contains active root credentials. "
+            "Remove root credentials from '.env' in production environments."
         )
         logger.warning(warning_msg)
 
     async def run(self) -> None:
         """
         Main initialization workflow:
-        1. Check for existing users (skip if system already initialized)
+        1. Check for existing users
         2. Validate environment configuration
         3. Create root role and user
         4. Initialize access policies
-        5. Start policy listener
+        5. Start policy synchronization
         6. Generate security warnings
 
         Raises:
-            RuntimeError: For any critical initialization failure
+            RuntimeError: For critical initialization failures
         """
         try:
             async with get_sql_session() as session:
-                # Check if system already has users
+                # Check if system is already initialized
                 user_count = await session.scalar(select(func.count(User.id)))
                 root_env = RootUserEnv()
 
                 if user_count and user_count > 0:
-                    logger.info(
-                        "Users exist in DB, skipping root account system bootstrap."
-                    )
-
-                    result = await session.execute(
-                        select(User).where(User.username == root_env.username)
-                    )
-                    existing_root_user = result.scalars().first()
-
-                    if existing_root_user and verify_password(
-                        root_env.password, existing_root_user.hashed_password
-                    ):
-                        await self._warn_env_exposure(root_env)
+                    logger.info("Existing users found - skipping root initialization")
                     return
 
                 # New system initialization
-                logger.info("Initializing root authentication system")
-
-                # Process security warnings from environment config
-                for warning in root_env.get_security_warnings():
-                    logger.warning(warning)
+                logger.info("Initializing authentication system")
 
                 # Create root role and user
                 root_role = await self._create_root_role(root_env, session)
@@ -249,12 +245,37 @@ class AuthSystemInitializer(AddonSetupHook):
                 casbin_enforcer = await get_enforcer()
                 await start_redis_policy_listener(casbin_enforcer)
 
-                logger.success("Authentication system initialized successfully")
+                logger.success("Authentication system initialized")
                 await self._warn_env_exposure(root_env)
 
         except SQLAlchemyError as e:
-            logger.exception("Database error during initialization")
+            logger.critical(f"Database error: {str(e)}")
             raise RuntimeError("Database operation failed") from e
         except Exception as e:
-            logger.exception("Critical initialization error")
+            logger.critical(f"Initialization failed: {str(e)}")
             raise RuntimeError("System initialization aborted") from e
+
+
+class TokenCleanUpHook(AddonSetupHook):
+    """Periodic hook to clean up expired tokens from the database."""
+
+    async def run(self):
+        """Executes token cleanup process."""
+        try:
+            await cleanup_expired_tokens()
+            logger.debug("Expired tokens cleaned up successfully")
+        except Exception as e:
+            logger.error(f"Token cleanup failed: {str(e)}")
+
+
+class KeyManagerInitHook(AddonSetupHook):
+    """Initialization hook for JWT key manager."""
+
+    async def run(self):
+        """Initializes the key manager with database session."""
+        try:
+            await key_manager.initialize()
+            logger.info("Key manager initialized successfully")
+        except Exception as e:
+            logger.critical(f"Key manager initialization failed: {str(e)}")
+            raise RuntimeError("Key manager setup failed") from e
