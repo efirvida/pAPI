@@ -43,7 +43,7 @@ from papi.core.db import get_redis_client, query_helper
 from papi.core.exceptions import APIException
 from papi.core.init import init_base_system, init_mcp_server
 from papi.core.logger import logger, setup_logging
-from papi.core.models.response import create_response
+from papi.core.response import create_response
 from papi.core.settings import get_config
 
 __version__ = importlib.metadata.version("papi")
