@@ -19,4 +19,5 @@ addons:
   enabled:
     - hello_world
     - weather
+    - family_tree
 
