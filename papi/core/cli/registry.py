@@ -9,9 +9,7 @@ and ensures commands from different addons don't conflict.
 from collections import defaultdict
 from typing import Dict, List, Optional, Union
 
-import click
-
-from .base import PAPICommand, PAPICommandGroup
+from papi.core.cli.base import PAPICommand, PAPICommandGroup
 
 
 class CLIRegistry:
@@ -60,56 +58,22 @@ class CLIRegistry:
         else:
             self._commands[addon_id][command.name] = command
 
-    def create_cli(self) -> click.Group:
-        """
-        Create the complete CLI by combining all registered commands.
-
-        Returns:
-            The root command group containing all commands
-        """
-        if not self._root_group:
-            self._root_group = PAPICommandGroup(
-                name="papi", help="pAPI CLI tool for managing the system", commands={}
-            )
-
-            # Add built-in commands at initialization
-            # These are imported at runtime to avoid circular imports
-            @self._root_group.command()
-            def webserver():
-                """Start the production FastAPI web server."""
-                from papi.cli import webserver as ws
-
-                return ws()
-
-            @self._root_group.command()
-            def shell():
-                """Launch an interactive Python shell."""
-                from papi.cli import shell as sh
-
-                return sh()
-
-            @self._root_group.command()
-            def mcpserver():
-                """Start the standalone MCP server."""
-                from papi.cli import mcpserver as mcp
-
-                return mcp()
-
-        # Add all registered addon commands to root group
-        for addon_id, commands in self._commands.items():
-            for cmd in commands.values():
-                if cmd.name is None or cmd.name in self._root_group.commands:
-                    continue
-                self._root_group.add_command(cmd)
-
-        return self._root_group
-
     def get_commands_for_addon(
         self, addon_id: str
     ) -> List[Union[PAPICommand, PAPICommandGroup]]:
         """Get all commands registered for a specific addon."""
         return list(self._commands[addon_id].values())
 
+    def get_all_registered_commands(self) -> List[Union[PAPICommand, PAPICommandGroup]]:
+        """Returns a flat list of all registered commands from all addons."""
+        all_commands = []
+        for commands in self._commands.values():
+            all_commands.extend(commands.values())
+        return all_commands
+
     def clear(self) -> None:
         """Clear all registered commands. Mainly useful for testing."""
         self._initialize()
+
+
+registry = CLIRegistry()

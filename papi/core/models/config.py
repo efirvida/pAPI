@@ -119,6 +119,8 @@ class GeneralInfoConfig(BaseModel):
     """
 
     title: Optional[str] = "pAPI Platform"
+    version: Optional[str] = ""
+    description: Optional[str] = "pAPI core API Platform"
 
     class Config:
         extra = "allow"

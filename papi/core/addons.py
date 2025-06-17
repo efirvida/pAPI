@@ -10,7 +10,7 @@ from collections import defaultdict
 from inspect import isclass, ismodule
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, List, Set, Type
+from typing import Any, Dict, List, Optional, Set, Type
 
 from beanie import Document
 from fastapi import APIRouter as FASTApiRouter
@@ -121,67 +121,115 @@ class AddonsGraph:
         return "\n".join(f"{source} -> {deps}" for source, deps in self.graph.items())
 
 
-def get_addons_from_dirs(
-    addons_paths: List[str], enabled_addons_ids: List[str]
-) -> AddonsGraph:
+def get_addons_from_dir(
+    addons_path: str, enabled_addons_ids: List[str], max_cycles: int = 1000
+) -> Optional["AddonsGraph"]:
     """
-    Scan directories for available addons, parse their manifests,
-    and build a dependency graph including only the enabled addons
-    and their direct/indirect dependencies.
+    Builds a dependency graph of enabled addons and their dependencies.
+
+    Scans the specified directory for addons, parses their manifests, and constructs
+    a directed acyclic graph (DAG) including only:
+    - Explicitly enabled addons
+    - Their direct and indirect dependencies
+    - Valid addons meeting all dependency requirements
+        addons_graph = get_addons_from_dir(
+            addons_path=addons_path,
+            enabled_addons_ids=config.addons.enabled,
+        )
+        if not addons_graph:
+            return None
+
+    Args:
+        addons_path: Filesystem path to the directory containing addon subdirectories
+        enabled_addons_ids: List of addon IDs to enable (must be present in addons_path)
+        max_cycles: Maximum iterations before aborting cycle detection (safeguard)
+
+    Returns:
+        AddonsGraph: Dependency graph of resolved addons
+        None: If addons directory doesn't exist
+
+    Raises:
+        RuntimeError: If dependency resolution fails due to cycles
     """
+    # Validate input directory
+    base_path = Path(addons_path).resolve()
+    if not base_path.is_dir():
+        logger.warning(f"Addons directory not found: {base_path}")
+        return None
+
+    # Phase 1: Scan directory and parse manifests
+    all_manifests: Dict[str, "AddonManifest"] = {}
+    processed_addons: Set[str] = set()
+
+    for entry in os.scandir(base_path):
+        if not entry.is_dir():
+            continue  # Skip files
+
+        addon_id = entry.name
+        manifest_path = base_path / addon_id / "manifest.yaml"
+
+        # Skip addons without manifest or duplicates
+        if not manifest_path.exists():
+            logger.warning(f"Missing manifest in addon: {addon_id}")
+            continue
+        if addon_id in processed_addons:
+            continue
+
+        # Parse and store valid manifests
+        try:
+            manifest = AddonManifest.from_yaml(manifest_path)
+            all_manifests[addon_id] = manifest
+            processed_addons.add(addon_id)
+        except Exception as e:
+            logger.error(f"Invalid manifest in {addon_id}: {str(e)}")
+
+    # Phase 2: Dependency resolution with cycle detection
     graph = AddonsGraph()
-    all_manifests: Dict[str, AddonManifest] = {}
-    seen_addons: Set[str] = set()
+    resolved_addons: Set[str] = set()
+    dependency_stack: List[str] = list(set(enabled_addons_ids))  # Deduplicate
+    resolution_path: Set[str] = set()  # Track current resolution path
+    iteration_count = 0
 
-    # Optimización 1: Escaneo de manifiestos sin modificar sys.path
-    for addons_path in addons_paths:
-        base_path = Path(addons_path).resolve()
-        if not base_path.is_dir():
-            logger.warning(f"Addons directory not found: {base_path}")
-            continue
+    while dependency_stack:
+        iteration_count += 1
+        if iteration_count > max_cycles:
+            raise RuntimeError(
+                f"Dependency resolution exceeded {max_cycles} iterations. "
+                "Probable dependency cycle."
+            )
 
-        for entry in os.scandir(base_path):
-            if not entry.is_dir():
-                continue
+        current_addon = dependency_stack.pop()
+        if current_addon in resolved_addons:
+            continue  # Already processed
 
-            manifest_path = base_path / entry.name / "manifest.yaml"
-            if not manifest_path.exists():
-                logger.warning(f"Missing 'manifest.yaml' in addon: {entry.name}")
-                continue
+        # Handle circular dependencies
+        if current_addon in resolution_path:
+            raise RuntimeError(
+                f"Circular dependency detected involving: {current_addon}. "
+                f"Current resolution path: {', '.join(resolution_path)}"
+            )
 
-            # Optimización 2: Evitar procesar duplicados
-            if entry.name in seen_addons:
-                continue
-            seen_addons.add(entry.name)
-
-            try:
-                manifest = AddonManifest.from_yaml(manifest_path)
-                all_manifests[entry.name] = manifest
-            except Exception as e:
-                logger.error(f"Error loading manifest for {entry.name}: {str(e)}")
-
-    # Optimización 3: Resolución iterativa de dependencias
-    resolved: Set[str] = set()
-    stack: List[str] = list(enabled_addons_ids)
-
-    while stack:
-        addon_id = stack.pop()
-        if addon_id in resolved:
-            continue
-
-        manifest = all_manifests.get(addon_id)
+        # Retrieve manifest or skip unresolved
+        manifest = all_manifests.get(current_addon)
         if not manifest:
-            logger.warning(f"Addon '{addon_id}' not found in any addon path.")
-            resolved.add(addon_id)  # Evitar reintentos
+            logger.warning(f"Addon '{current_addon}' not found - skipping")
+            resolved_addons.add(current_addon)  # Prevent retries
             continue
 
-        # Agregar dependencias no resueltas al stack
-        unresolved_deps = [dep for dep in manifest.dependencies if dep not in resolved]
-        if unresolved_deps:
-            stack.append(addon_id)  # Reingresar para procesar después
-            stack.extend(unresolved_deps)
+        # Check for unresolved dependencies
+        unresolved = [
+            dep for dep in manifest.dependencies if dep not in resolved_addons
+        ]
+        if unresolved:
+            # Re-add current addon and process dependencies first
+            resolution_path.add(current_addon)
+            dependency_stack.append(current_addon)
+            dependency_stack.extend(unresolved)
         else:
-            resolved.add(addon_id)
+            # Finalize addon resolution
+            resolved_addons.add(current_addon)
+            if current_addon in resolution_path:
+                resolution_path.remove(current_addon)
             graph.add_module(manifest)
 
     return graph

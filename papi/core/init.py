@@ -1,4 +1,4 @@
-import os
+import importlib
 from types import ModuleType
 from typing import Callable, Optional, Type
 
@@ -17,12 +17,14 @@ from starlette.applications import Starlette
 from papi.core.addons import (
     AddonSetupHook,
     get_addon_setup_hooks,
-    get_addons_from_dirs,
+    get_addons_from_dir,
     get_beanie_documents_from_addon,
     get_router_from_addon,
     get_sqlalchemy_models_from_addon,
     load_and_import_all_addons,
 )
+from papi.core.cli import CLIRegistry
+from papi.core.cli import registry as main_cli_registry
 from papi.core.db import (
     create_database_if_not_exists,
     extract_bases_from_models,
@@ -33,6 +35,51 @@ from papi.core.mcp import create_sse_server
 from papi.core.router import MPCRouter
 from papi.core.settings import get_config
 from papi.core.utils import install_python_dependencies
+
+
+def discover_addon_commands(
+    registry: CLIRegistry, modules: dict[str, ModuleType]
+) -> None:
+    """
+    Discovers and registers CLI commands from enabled addons.
+
+    This function:
+    1. Retrieves addon configuration
+    2. Builds addon dependency graph
+    3. Loads and imports addon modules
+    4. Discovers and registers CLI commands from each addon
+
+    Args:
+        registry: Command registry instance to register commands with
+
+    Raises:
+        RuntimeError: If critical failure occurs during discovery
+    """
+
+    # Process each addon for CLI commands
+    logger.debug("Discovering CLI commands in addons")
+    for addon_id, module in modules.items():
+        try:
+            logger.debug(f"Processing addon: {addon_id}")
+
+            # Attempt to import CLI module
+            cli_module = importlib.import_module(f"{module.__package__}.cli")
+
+            # Register commands if available
+            if hasattr(cli_module, "register_commands"):
+                logger.info(f"Registering commands for addon: {addon_id}")
+                cli_module.register_commands(registry, addon_id)
+            else:
+                logger.debug(f"No CLI commands found in addon: {addon_id}")
+
+        except ImportError:
+            logger.debug(f"Addon '{addon_id}' has no CLI module")
+        except Exception as e:
+            logger.warning(
+                f"Failed to register CLI for addon '{addon_id}': {e}", exc_info=True
+            )
+
+    logger.info(f"Completed command discovery for {len(modules)} addons")
 
 
 async def init_addons(modules: dict[str, ModuleType]) -> None:
@@ -181,7 +228,7 @@ async def init_sqlalchemy(
         raise RuntimeError(f"SQLAlchemy initialization error: {exc!r}")
 
 
-async def init_base_system(init_db_system: bool = True) -> dict:
+async def init_base_system(init_db_system: bool = True) -> dict | None:
     """
     Initialize the base system by loading addons and initializing the database.
 
@@ -197,20 +244,23 @@ async def init_base_system(init_db_system: bool = True) -> dict:
 
     # Define addon paths
     logger.info(f"Loading addons from: {config.addons.extra_addons_path}")
-    base_addons_path = os.path.abspath(os.path.join(__file__, "..", "..", "base"))
-    addons_paths = [config.addons.extra_addons_path, base_addons_path]
+    addons_path = config.addons.extra_addons_path
 
     try:
         # Discover and import addons
-        addons_graph = get_addons_from_dirs(
-            addons_paths=addons_paths,
+        addons_graph = get_addons_from_dir(
+            addons_path=addons_path,
             enabled_addons_ids=config.addons.enabled,
         )
+        if not addons_graph:
+            return
+
         python_deps = addons_graph.get_all_python_dependencies()
         if python_deps:
             install_python_dependencies(python_deps)
 
         modules = load_and_import_all_addons(addons_graph)
+        discover_addon_commands(registry=main_cli_registry, modules=modules)
 
     except (ValueError, ImportError) as e:
         logger.exception(f"Failed to load addons: {e}")

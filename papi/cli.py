@@ -11,7 +11,6 @@ Author: Eduardo M. Fírvida Donestevez
 """
 
 import asyncio
-import functools
 import importlib
 import importlib.metadata
 import logging
@@ -20,12 +19,13 @@ import sys
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, Generator, Set
+from typing import Any, AsyncGenerator, Dict, Generator, Set
 
 import anyio
 import click
 import nest_asyncio
 import uvicorn
+from click import Context
 from click_default_group import DefaultGroup
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -33,23 +33,61 @@ from fastapi.staticfiles import StaticFiles
 from IPython.terminal.embed import InteractiveShellEmbed
 
 from papi.core.addons import (
-    get_addons_from_dirs,
+    AddonsGraph,
     get_router_from_addon,
     has_static_files,
-    load_and_import_all_addons,
 )
-from papi.core.cli import CLIRegistry
-from papi.core.db import get_redis_client, query_helper
+from papi.core.cli.registry import registry as main_cli_registry
+from papi.core.db import get_redis_client
 from papi.core.exceptions import APIException
 from papi.core.init import init_base_system, init_mcp_server
 from papi.core.logger import logger, setup_logging
+from papi.core.models.config import GeneralInfoConfig
 from papi.core.response import create_response
 from papi.core.settings import get_config
 
 __version__ = importlib.metadata.version("papi")
+_registry_initialized = False
+_addons_graph = AddonsGraph()
 
-# Initialize registry at module level
-registry = CLIRegistry()
+
+def init_addons_commands():
+    """
+    Initialize addon commands lazily and only once.
+
+    This function:
+    1. Discovers and registers addon CLI commands
+    2. Ensures single initialization through a global flag
+    3. Handles conflicts and errors gracefully
+    """
+    global _registry_initialized
+    if _registry_initialized:
+        return
+
+    logger.debug("Initializing addon commands")
+
+    for addon_command in main_cli_registry.get_all_registered_commands():
+        command_name = addon_command.name
+
+        # Skip invalid commands
+        if not command_name:
+            logger.debug("Skipping unnamed addon command")
+            continue
+        if command_name in cli.commands:
+            logger.warning(
+                f"Command conflict: '{command_name}' already exists - skipping"
+            )
+            continue
+        if not callable(getattr(addon_command, "callback", None)):
+            logger.warning(f"Addon command '{command_name}' has no valid callback")
+            continue
+
+        # Register valid commands
+        try:
+            cli.add_command(addon_command, name=command_name)
+            logger.info(f"Registered addon command: {command_name}")
+        except Exception as e:
+            logger.error(f"Failed to register command '{command_name}': {e}")
 
 
 def get_banner() -> str:
@@ -104,7 +142,7 @@ def get_mcp_server(as_sse: bool = False) -> Any:
     """
 
     async def _init() -> Any:
-        modules_extra, _ = await init_base_system()
+        modules_extra = await init_base_system()
         return init_mcp_server(modules_extra, as_sse)
 
     try:
@@ -119,123 +157,183 @@ def get_mcp_server(as_sse: bool = False) -> Any:
 
 
 @asynccontextmanager
-async def run_api_server(app: FastAPI) -> Generator[None, None, None]:
+async def run_api_server(app: FastAPI) -> AsyncGenerator:
     """
-    FastAPI lifespan context manager for initializing the web server.
+    FastAPI lifespan context manager for application initialization and cleanup.
 
-    This sets up addon routes, static file mounts, and MCP tools. It also prepares
-    global storage directories defined in the configuration.
+    Performs the following operations:
+    1. Initializes the base system components
+    2. Sets up Redis client connection
+    3. Registers addon routes and static assets
+    4. Mounts the MCP server endpoint
+    5. Configures global storage directories
+    6. Ensures proper resource cleanup on shutdown
 
     Args:
-        app (FastAPI): The FastAPI application instance.
+        app: FastAPI application instance to configure
 
     Yields:
-        None
+        None: Control passes to the application runtime
 
     Raises:
-        Exception: If initialization fails, it logs the error and re-raises.
+        RuntimeError: For critical initialization failures
     """
-
+    redis_client = None
     try:
+        # Phase 1: System initialization
+        logger.info("Initializing base system components...")
         base_system = await init_base_system()
-        modules = base_system["modules"]
-        redis = await get_redis_client()
 
+        # Phase 2: Establish Redis connection
+        logger.debug("Establishing Redis connection...")
+        redis_client = await get_redis_client()
+
+        # Phase 3: Addon registration
         loaded_routers: Set[Any] = set()
+        modules = base_system.get("modules", {}) if base_system else {}
+
         for addon_id, module in modules.items():
-            if addon_routers := get_router_from_addon(module):
-                for router in addon_routers:
+            # Register addon routes
+            if routers := get_router_from_addon(module):
+                for router in routers:
                     if router not in loaded_routers:
                         app.include_router(router)
                         loaded_routers.add(router)
-                logger.debug(
-                    f"Addon {addon_id}: Registered {len(addon_routers)} routes"
-                )
+                logger.info(f"Addon '{addon_id}': Registered {len(routers)} routes")
 
+            # Mount static assets
             if has_static_files(module):
                 static_path = Path(module.__path__[0]) / "static"
-                if static_path.exists() and static_path.is_dir():
+                if static_path.is_dir():
                     app.mount(
-                        f"/{addon_id}",
+                        f"/static/{addon_id}",
                         StaticFiles(directory=static_path),
                         name=f"{addon_id}_static",
                     )
+                    logger.debug(
+                        f"Addon '{addon_id}': Mounted static assets at {static_path}"
+                    )
                 else:
                     logger.warning(
-                        f"Addon {addon_id}: Missing static directory at {static_path}"
+                        f"Addon '{addon_id}': Missing static directory {static_path}"
                     )
 
-        mcp_server = init_mcp_server(modules, as_sse=True)
-        app.mount("/", mcp_server, name="MCP Tools")
+        # Phase 4: MCP server setup
+        if modules:
+            mcp_server = init_mcp_server(modules, as_sse=True)
+            app.mount("/mcp", mcp_server, name="MCP Tools")
+            logger.info("Mounted MCP server at /mcp")
 
+        # Phase 5: Storage configuration
         config = get_config()
         if config.storage:
             for name, path in config.storage.model_dump().items():
                 os.makedirs(path, exist_ok=True)
                 app.mount(
-                    f"/{name}",
+                    f"/storage/{name}",
                     StaticFiles(directory=path),
-                    name=f"Global {name} Storage",
+                    name=f"{name}_storage",
                 )
-                logger.info(f"Storage '{name}' configured at: {path}")
+                logger.info(f"Storage '{name}' mounted at: /storage/{name}")
 
+        # Application ready
+        logger.info("Application initialization completed successfully")
         yield
-        logger.info("Closing redis connection...")
-        redis = await get_redis_client()
-        if redis:
-            await redis.aclose()
 
     except Exception as e:
-        logger.critical(f"Initialization error: {e}")
-        raise
+        logger.critical(f"Application initialization failed: {str(e)}")
+        raise RuntimeError("Critical startup failure") from e
 
-
-def discover_addon_commands() -> None:
-    try:
-        config = get_config()
-        base_addons_path = os.path.abspath(os.path.join(__file__, "..", "base"))
-        addons_paths = [
-            p for p in [config.addons.extra_addons_path, base_addons_path] if p
-        ]
-
-        addons_graph = get_addons_from_dirs(
-            addons_paths=addons_paths,
-            enabled_addons_ids=config.addons.enabled,
-        )
-        modules = load_and_import_all_addons(addons_graph)
-
-        for addon_id, module in modules.items():
-            try:
-                cli_module = importlib.import_module(f"{module.__package__}.cli")
-                if hasattr(cli_module, "register_commands"):
-                    cli_module.register_commands(registry, addon_id)
-            except ImportError:
-                continue
-            except Exception as e:
-                logger.warning(
-                    f"Failed to register CLI for addon '{addon_id}': {e}", exc_info=True
-                )
-
-    except Exception as e:
-        logger.critical(f"Addon discovery failed: {e}", exc_info=True)
+    finally:
+        # Phase 6: Resource cleanup
+        logger.info("Starting application shutdown...")
+        if redis_client:
+            logger.debug("Closing Redis connection...")
+            await redis_client.aclose()
+            logger.info("Redis connection closed")
+        logger.info("Shutdown completed")
 
 
 def create_fastapi_app() -> FastAPI:
-    config = get_config()
-    return FastAPI(
-        title=config.info.title or "pAPI",
-        version=config.info.version or __version__,
-        description=config.info.description or "",
-        lifespan=run_api_server,
-    )
+    """
+    Creates and configures the main FastAPI application instance.
+
+    This function:
+    1. Retrieves application configuration
+    2. Sets core API metadata (title, version, description)
+    3. Attaches the lifespan management context
+    4. Returns the fully configured application instance
+
+    Returns:
+        FastAPI: The configured application instance
+
+    Raises:
+        RuntimeError: If critical configuration is missing
+    """
+    try:
+        logger.info("Creating FastAPI application instance")
+        config = get_config()
+
+        # Validate essential configuration
+        if not config.info:
+            logger.warning("Missing info configuration - using defaults")
+            config.info = GeneralInfoConfig()  # Assume default config class exists
+
+        # Create application with metadata
+        app = FastAPI(
+            title=config.info.title or "pAPI",
+            version=config.info.version or __version__,
+            description=config.info.description or "",
+            lifespan=run_api_server,
+        )
+
+        logger.debug("FastAPI instance created successfully")
+        return app
+
+    except Exception as e:
+        logger.critical("Failed to create FastAPI application", exc_info=True)
+        raise RuntimeError("Application initialization failed") from e
 
 
 def setup_api_exception_handler(app: FastAPI) -> None:
+    """
+    Registers a global exception handler for custom API exceptions.
+
+    This handler:
+    1. Catches APIException instances
+    2. Structures consistent error responses
+    3. Preserves error details and headers
+    4. Returns standardized JSON error format
+
+    Args:
+        app: FastAPI application instance to register the handler
+
+    Note:
+        Must be called after app creation but before starting the server
+    """
+
     @app.exception_handler(APIException)
     async def api_exception_handler(
         request: Request, exc: APIException
     ) -> JSONResponse:
-        response = create_response(
+        """
+        Handles APIException errors and returns structured responses.
+
+        Args:
+            request: Incoming request object
+            exc: Raised APIException instance
+
+        Returns:
+            JSONResponse: Formatted error response
+        """
+        # Log the error with appropriate severity
+        if exc.status_code >= 500:
+            logger.error(f"Server error ({exc.code}): {exc.message}")
+        elif exc.status_code >= 400:
+            logger.warning(f"Client error ({exc.code}): {exc.message}")
+
+        # Create standardized error response
+        error_response = create_response(
             success=False,
             message=exc.message,
             error={
@@ -245,11 +343,15 @@ def setup_api_exception_handler(app: FastAPI) -> None:
                 "status_code": exc.status_code,
             },
         )
+
+        # Return JSON response with appropriate status
         return JSONResponse(
             status_code=exc.status_code,
-            content=response.model_dump(),
-            headers=getattr(exc, "headers", None),
+            content=error_response.model_dump(),
+            headers=exc.headers or {},
         )
+
+    logger.debug("Registered global API exception handler")
 
 
 @click.group(
@@ -259,155 +361,157 @@ def setup_api_exception_handler(app: FastAPI) -> None:
     context_settings={"help_option_names": ["-h", "--help"]},
     help="Main entry point for pAPI service management CLI.",
 )
-@click.option("--config", default="config.yaml", help="Path to configuration file")
+@click.option(
+    "--config",
+    default="config.yaml",
+    show_default=True,
+    help="Path to configuration file.",
+)
 @click.pass_context
-def cli(ctx: click.Context, config: str) -> None:
+def cli(ctx: Context, config: str) -> None:
     """
     Main entry point for pAPI service management CLI.
 
     Provides subcommands to launch the system in different modes,
     including interactive shell, web server, and MCP server.
-
     """
     ctx.ensure_object(dict)
     ctx.obj["CONFIG_PATH"] = config
 
 
 def init_logging_and_config(ctx: click.Context) -> None:
-    if not hasattr(ctx, "obj_initialized"):
+    """
+    Initialize configuration and logging if not already initialized.
+    """
+    if not getattr(ctx, "obj_initialized", False):
         try:
-            ctx.obj["CONFIG"] = get_config(ctx.obj["CONFIG_PATH"])
+            config_path = ctx.obj.get("CONFIG_PATH")
+            if not config_path:
+                raise ValueError("Configuration path not provided.")
+
+            ctx.obj["CONFIG"] = get_config(config_path)
             setup_logging()
             ctx.obj_initialized = True
         except Exception as e:
-            logger.critical(f"Error initializing system: {e}")
+            logger.critical("Failed to initialize configuration or logging", exc_info=e)
             sys.exit(1)
 
 
-@cli.command()
+@cli.command(name="shell")
 def shell() -> None:
     """
     Launch an interactive IPython shell with the initialized system context.
 
-    This includes all Beanie documents and addon modules, fully initialized and
-    ready for inspection or manual testing. Async/await is fully supported.
+    Provides:
+    - Full async/await support
+    - Pre-loaded document models
+    - Helper functions for querying
+    - All system components initialized
+    - Addon modules available
+
+    Usage:
+    $ papi shell
     """
     ctx = click.get_current_context()
     init_logging_and_config(ctx)
-    nest_asyncio.apply()
+    nest_asyncio.apply()  # Enable nested event loops
 
     async def start_shell() -> None:
+        """Initialize system and launch IPython shell."""
         try:
-            with disable_logging():
-                base_system = await init_base_system()
-                documents = base_system.get("documents", {})
+            with disable_logging():  # Suppress initialization logs
+                base_system = await init_base_system() or {}
 
-                def show_models() -> None:
-                    print("Available document models:")
-                    for name in documents:
-                        print(f" - {name}")
+                # Prepare shell environment
+                namespace: Dict[str, Any] = (
+                    {k: v for k, v in base_system.items() if v} if base_system else {}
+                )
 
-                def env(model_name: str) -> Any:
-                    return documents.get(model_name)
-
-                helpers = {
-                    "env": env,
-                    "show_models": show_models,
-                    "sql_query": query_helper,
-                }
-
-                user_namespace = {
-                    **{k: v for k, v in base_system.items() if v},
-                    **helpers,
-                }
-
+                # Configure IPython shell
                 shell = InteractiveShellEmbed(
-                    banner1=get_banner(), user_ns=user_namespace
+                    banner1=get_banner(),
+                    user_ns=namespace,
+                    exit_msg="Exiting pAPI shell. Goodbye!",
                 )
                 shell.run_line_magic("autoawait", "asyncio")
                 shell()
 
         except Exception as e:
-            logger.critical(f"Failed to start interactive shell: {e}")
+            logger.critical(f"Failed to start interactive shell: {e}", exc_info=True)
             sys.exit(1)
 
     anyio.run(start_shell)
 
 
-@cli.command()
+@cli.command(name="webserver")
 def webserver() -> None:
     """
     Start the production FastAPI web server.
 
-    Loads configuration from file and initializes the full system via
-    the FastAPI lifespan context. Runs the server with Uvicorn.
-    """
-    ctx = click.get_current_context()
-    init_logging_and_config(ctx)
+    Features:
+    - Full API endpoint routing
+    - Static asset serving
+    - MCP integration
+    - Custom exception handling
 
-    app = create_fastapi_app()
-    setup_api_exception_handler(app)
-
-    config = get_config()
-    uvicorn_config = uvicorn.Config(
-        app,
-        host=config.server.host or "0.0.0.0",
-        port=config.server.port or 8000,
-        log_config=None,
-        access_log=False,
-    )
-
-    server = uvicorn.Server(uvicorn_config)
-    server.run()
-
-
-@cli.command()
-def mcpserver() -> None:
-    """
-    Start the standalone MCP server.
-
-    This runs the backend communication protocol server without launching the full API.
+    Usage:
+    $ papi webserver
     """
     ctx = click.get_current_context()
     init_logging_and_config(ctx)
 
     try:
-        mcp = get_mcp_server(as_sse=False)
-        mcp.run()
+        logger.info("Creating FastAPI application")
+        app = create_fastapi_app()
+        setup_api_exception_handler(app)
+
+        config = get_config()
+        logger.info(f"Starting webserver at {config.server.host}:{config.server.port}")
+
+        uvicorn_config = uvicorn.Config(
+            app,
+            host=config.server.host or "0.0.0.0",
+            port=config.server.port or 8000,
+            log_config=None,
+            access_log=False,
+            timeout_keep_alive=60,
+        )
+
+        server = uvicorn.Server(uvicorn_config)
+        server.run()
+
     except Exception as e:
-        logger.critical(f"MCP Server error: {e}")
+        logger.critical(f"Webserver startup failed: {e}", exc_info=True)
         sys.exit(1)
 
 
-def create_wrapper(original: Any) -> Any:
-    @functools.wraps(original)
-    def wrapped_command(*args: Any, **kwargs: Any) -> Any:
-        click.echo(get_banner())
-        ctx = click.get_current_context()
-        init_logging_and_config(ctx)
-        return original(*args, **kwargs)
+@cli.command(name="mcpserver")
+def mcpserver() -> None:
+    """
+    Start the standalone Management Control Protocol server.
 
-    return wrapped_command
+    Runs the backend communication protocol without the full API stack.
 
+    Usage:
+    $ papi mcpserver
+    """
+    ctx = click.get_current_context()
+    init_logging_and_config(ctx)
 
-discover_addon_commands()
-dynamic_cli_group = registry.create_cli()
+    try:
+        logger.info("Initializing MCP server")
+        mcp = get_mcp_server(as_sse=False)
+        logger.info("Starting MCP server in standalone mode")
+        mcp.run()
+    except Exception as e:
+        logger.critical(f"MCP Server error: {e}", exc_info=True)
+        sys.exit(1)
 
-for command_name, command in dynamic_cli_group.commands.items():
-    if command_name in cli.commands:
-        continue
-    if isinstance(command, click.Group):
-        cli.add_command(command, command_name)
-        continue
-    original_callback = command.callback
-    if original_callback is None:
-        logger.warning(f"Command '{command_name}' has no callback and was skipped.")
-        continue
-    if not callable(original_callback):
-        raise TypeError(f"Command '{command_name}' callback is not callable.")
-    command.callback = create_wrapper(original_callback)
-    cli.add_command(command, command_name)
 
 if __name__ == "__main__":
-    print(get_banner())
-    cli()
+    try:
+        init_addons_commands()
+        cli(prog_name="papi")
+    except Exception as e:
+        logger.critical(f"CLI runtime error: {e}", exc_info=True)
+        sys.exit(1)
