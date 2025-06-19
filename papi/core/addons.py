@@ -7,6 +7,7 @@ import importlib
 import os
 import sys
 from collections import defaultdict
+from graphlib import CycleError, TopologicalSorter
 from inspect import isclass, ismodule
 from pathlib import Path
 from types import ModuleType
@@ -23,215 +24,213 @@ from papi.core.router import MPCRouter, RESTRouter
 
 class AddonSetupHook:
     """
-    Optional interface for addons that need to run setup logic before system start.
-    Can be used for tasks such as migrations, initial configuration, or checks.
+    Optional base class for addons that need to hook into the system lifecycle.
+    Subclasses may override any of the following methods.
     """
 
     async def run(self) -> None:
-        """Executed when the addon is registered or initialized."""
+        """Executed once during addon registration or initialization."""
+        pass
+
+    async def startup(self) -> None:
+        """Executed during startup event."""
+        pass
+
+    async def shutdown(self) -> None:
+        """Executed during shutdown event."""
         pass
 
 
 class AddonsGraph:
     """
     Represents a directed acyclic graph (DAG) of addon dependencies.
-    Provides cycle detection and topological sorting for load order resolution.
+    Provides functionality to add addons with their dependencies,
+    detect circular dependencies, and obtain a topological order.
     """
 
     def __init__(self) -> None:
-        self.graph: Dict[str, List[str]] = defaultdict(list)
+        """
+        Initializes the AddonsGraph.
+        - self.addons: maps addon_id to AddonManifest
+        - self.dependencies: maps addon_id to set of dependent addon_ids
+        - self.required_python_dependencies: set of all Python dependencies from addons
+        """
         self.addons: Dict[str, AddonManifest] = {}
+        self.dependencies: Dict[str, Set[str]] = defaultdict(set)
         self.required_python_dependencies: Set[str] = set()
+        logger.debug("AddonsGraph initialized")
 
-    def add_module(self, addon_definition: AddonManifest) -> None:
+    def add_module(self, addon: AddonManifest) -> None:
         """
-        Register a new addon and its dependencies in the graph.
+        Adds a single addon to the graph without its dependencies.
+        If the addon is already present, it is skipped.
+
+        Args:
+            addon (AddonManifest): The addon manifest to add.
         """
-        addon_id = addon_definition.addon_id
+        addon_id = addon.addon_id
         if addon_id in self.addons:
-            raise ValueError(f"Addon '{addon_definition.name}' is already registered")
+            logger.debug(f"Addon '{addon_id}' already added, skipping")
+            return
 
-        self.addons[addon_id] = addon_definition
-        self.graph[addon_id].extend(addon_definition.dependencies)
+        self.addons[addon_id] = addon
+        self.dependencies[addon_id].update(addon.dependencies)
+        for dep in addon.dependencies:
+            # Ensure all nodes exist in dependencies dictionary
+            if dep not in self.dependencies:
+                self.dependencies[dep] = set()
 
-        for dependency in addon_definition.dependencies:
-            self.graph[dependency]
+        self.required_python_dependencies.update(addon.python_dependencies)
+        logger.debug(
+            f"Added addon '{addon_id}' with dependencies: {addon.dependencies}"
+        )
 
-        self.required_python_dependencies.update(addon_definition.python_dependencies)
-
-    def detect_cycles(self) -> List[List[str]]:
+    def add_with_dependencies(
+        self,
+        addon: AddonManifest,
+        all_manifests: Dict[str, AddonManifest],
+        visited: Optional[Set[str]] = None,
+    ) -> None:
         """
-        Detect cycles in the dependency graph.
-        Returns a list of cycles found (each as a list of addon IDs).
+        Recursively adds the given addon and all its dependencies to the graph.
+        Detects circular dependencies and raises RuntimeError if any are found.
+
+        Args:
+            addon (AddonManifest): The addon manifest to add.
+            all_manifests (Dict[str, AddonManifest]): All available addon manifests.
+            visited (Optional[Set[str]]): Set of currently visited addon IDs during recursion.
+
+        Raises:
+            RuntimeError: If a circular dependency or missing dependency is detected.
         """
-        visited: Set[str] = set()
-        stack: Set[str] = set()
-        current_path: List[str] = []
-        cycles: List[List[str]] = []
+        if visited is None:
+            visited = set()
+        failed = False
 
-        def dfs(node: str) -> None:
-            visited.add(node)
-            stack.add(node)
-            current_path.append(node)
+        addon_id = addon.addon_id
+        if addon_id in visited:
+            path = " -> ".join(list(visited) + [addon_id])
+            logger.error(f"Circular dependency detected: {path}")
+            raise RuntimeError(f"Circular dependency detected in path: {path}")
 
-            for neighbor in self.graph[node]:
-                if neighbor not in visited:
-                    dfs(neighbor)
-                elif neighbor in stack:
-                    cycle_start = current_path.index(neighbor)
-                    cycles.append(current_path[cycle_start:] + [neighbor])
+        if addon_id in self.addons:
+            logger.debug(f"Addon '{addon_id}' already processed, skipping recursion")
+            return
 
-            stack.remove(node)
-            current_path.pop()
+        logger.debug(
+            f"Processing addon '{addon_id}' with dependencies {addon.dependencies}"
+        )
+        visited.add(addon_id)
 
-        for node in self.graph:
-            if node not in visited:
-                dfs(node)
+        for dep_id in addon.dependencies:
+            dep_manifest = all_manifests.get(dep_id)
+            if not dep_manifest:
+                logger.error(
+                    f"Dependency '{dep_id}' of addon '{addon_id}' not found, skipping {addon_id}"
+                )
+                failed = True
+                continue
+            self.add_with_dependencies(dep_manifest, all_manifests, visited)
 
-        return cycles
+        visited.remove(addon_id)
+        if not failed:
+            self.add_module(addon)
+            logger.debug(f"Finished processing addon '{addon_id}'")
+        logger.debug(f"Finished processing addon '{addon_id}  with errors'")
 
     def topological_order(self) -> List[str]:
         """
-        Returns a list of addon IDs in topological order of dependencies.
-        Raises an exception if cycles are detected.
+        Computes and returns a topological order of the addons
+        based on their dependencies.
+
+        Returns:
+            List[str]: Addon IDs in topological order.
+
+        Raises:
+            RuntimeError: If a circular dependency is detected.
         """
-        if cycles := self.detect_cycles():
-            raise ValueError(f"Dependency cycle detected: {cycles}")
-
-        visited: Set[str] = set()
-        order: List[str] = []
-
-        def dfs(node: str) -> None:
-            visited.add(node)
-            for neighbor in self.graph[node]:
-                if neighbor not in visited:
-                    dfs(neighbor)
-            order.append(node)
-
-        for node in self.graph:
-            if node not in visited:
-                dfs(node)
-
-        return order
+        ts = TopologicalSorter(self.dependencies)
+        try:
+            order = list(ts.static_order())
+            logger.debug(f"Topological order computed: {order}")
+            return order
+        except CycleError as e:
+            logger.error(
+                f"Circular dependency detected during topological sort: {e.args}"
+            )
+            raise RuntimeError(f"Circular dependency detected: {e.args}")
 
     def get_all_python_dependencies(self) -> List[str]:
-        return sorted(self.required_python_dependencies)
+        """
+        Returns a sorted list of all unique Python package dependencies
+        required by the addons.
+
+        Returns:
+            List[str]: Sorted list of Python dependencies.
+        """
+        deps = sorted(self.required_python_dependencies)
+        logger.debug(f"Collected Python dependencies: {deps}")
+        return deps
 
     def __str__(self) -> str:
-        return "\n".join(f"{source} -> {deps}" for source, deps in self.graph.items())
+        """
+        Returns a human-readable string representing the dependency graph.
 
-
-def get_addons_from_dir(
-    addons_path: str, enabled_addons_ids: List[str], max_cycles: int = 1000
-) -> Optional["AddonsGraph"]:
-    """
-    Builds a dependency graph of enabled addons and their dependencies.
-
-    Scans the specified directory for addons, parses their manifests, and constructs
-    a directed acyclic graph (DAG) including only:
-    - Explicitly enabled addons
-    - Their direct and indirect dependencies
-    - Valid addons meeting all dependency requirements
-        addons_graph = get_addons_from_dir(
-            addons_path=addons_path,
-            enabled_addons_ids=config.addons.enabled,
+        Returns:
+            str: Multi-line string with addon dependencies.
+        """
+        return "\n".join(
+            f"{addon} -> {sorted(deps)}" for addon, deps in self.dependencies.items()
         )
-        if not addons_graph:
-            return None
+
+
+def get_addons_from_dir(addons_path: str, enabled_addons_ids: List[str]) -> AddonsGraph:
+    """
+    Loads all addon manifests from the given directory and builds an AddonsGraph
+    containing the enabled addons and all their recursive dependencies.
 
     Args:
-        addons_path: Filesystem path to the directory containing addon subdirectories
-        enabled_addons_ids: List of addon IDs to enable (must be present in addons_path)
-        max_cycles: Maximum iterations before aborting cycle detection (safeguard)
+        addons_path (str): Path to the directory containing addon subdirectories.
+        enabled_addons_ids (List[str]): List of addon IDs to enable.
 
     Returns:
-        AddonsGraph: Dependency graph of resolved addons
-        None: If addons directory doesn't exist
+        AddonsGraph: The constructed graph of enabled addons and dependencies.
 
     Raises:
-        RuntimeError: If dependency resolution fails due to cycles
+        RuntimeError: If the addons directory is not found, if an enabled addon
+                      manifest is missing, or if circular/missing dependencies occur.
     """
-    # Validate input directory
     base_path = Path(addons_path).resolve()
+    logger.debug(f"Resolving addons directory: {base_path}")
     if not base_path.is_dir():
-        logger.warning(f"Addons directory not found: {base_path}")
-        return None
+        logger.error(f"Addons directory not found: {base_path}")
+        raise RuntimeError(f"Addons directory not found: {base_path}")
 
-    # Phase 1: Scan directory and parse manifests
-    all_manifests: Dict[str, "AddonManifest"] = {}
-    processed_addons: Set[str] = set()
-
+    # Load all manifests from directory
+    all_manifests: Dict[str, AddonManifest] = {}
     for entry in os.scandir(base_path):
-        if not entry.is_dir():
-            continue  # Skip files
+        if entry.is_dir():
+            manifest_path = base_path / entry.name / "manifest.yaml"
+            if manifest_path.exists():
+                try:
+                    manifest = AddonManifest.from_yaml(manifest_path)
+                    all_manifests[manifest.addon_id] = manifest
+                    logger.debug(f"Loaded manifest for addon '{manifest.addon_id}'")
+                except Exception as e:
+                    logger.error(f"Failed to load manifest {manifest_path}: {e}")
 
-        addon_id = entry.name
-        manifest_path = base_path / addon_id / "manifest.yaml"
-
-        # Skip addons without manifest or duplicates
-        if not manifest_path.exists():
-            logger.warning(f"Missing manifest in addon: {addon_id}")
-            continue
-        if addon_id in processed_addons:
-            continue
-
-        # Parse and store valid manifests
-        try:
-            manifest = AddonManifest.from_yaml(manifest_path)
-            all_manifests[addon_id] = manifest
-            processed_addons.add(addon_id)
-        except Exception as e:
-            logger.error(f"Invalid manifest in {addon_id}: {str(e)}")
-
-    # Phase 2: Dependency resolution with cycle detection
     graph = AddonsGraph()
-    resolved_addons: Set[str] = set()
-    dependency_stack: List[str] = list(set(enabled_addons_ids))  # Deduplicate
-    resolution_path: Set[str] = set()  # Track current resolution path
-    iteration_count = 0
 
-    while dependency_stack:
-        iteration_count += 1
-        if iteration_count > max_cycles:
-            raise RuntimeError(
-                f"Dependency resolution exceeded {max_cycles} iterations. "
-                "Probable dependency cycle."
-            )
-
-        current_addon = dependency_stack.pop()
-        if current_addon in resolved_addons:
-            continue  # Already processed
-
-        # Handle circular dependencies
-        if current_addon in resolution_path:
-            raise RuntimeError(
-                f"Circular dependency detected involving: {current_addon}. "
-                f"Current resolution path: {', '.join(resolution_path)}"
-            )
-
-        # Retrieve manifest or skip unresolved
-        manifest = all_manifests.get(current_addon)
+    # Add enabled addons and their recursive dependencies
+    for addon_id in enabled_addons_ids:
+        manifest = all_manifests.get(addon_id)
         if not manifest:
-            logger.warning(f"Addon '{current_addon}' not found - skipping")
-            resolved_addons.add(current_addon)  # Prevent retries
-            continue
+            logger.error(f"Enabled addon '{addon_id}' not found in manifests")
+            raise RuntimeError(f"Enabled addon '{addon_id}' not found")
+        logger.debug(f"Adding enabled addon '{addon_id}' and its dependencies")
+        graph.add_with_dependencies(manifest, all_manifests)
 
-        # Check for unresolved dependencies
-        unresolved = [
-            dep for dep in manifest.dependencies if dep not in resolved_addons
-        ]
-        if unresolved:
-            # Re-add current addon and process dependencies first
-            resolution_path.add(current_addon)
-            dependency_stack.append(current_addon)
-            dependency_stack.extend(unresolved)
-        else:
-            # Finalize addon resolution
-            resolved_addons.add(current_addon)
-            if current_addon in resolution_path:
-                resolution_path.remove(current_addon)
-            graph.add_module(manifest)
-
+    logger.info(f"Finished building AddonsGraph with {len(graph.addons)} addons")
     return graph
 
 
