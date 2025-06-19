@@ -1,6 +1,8 @@
 import logging
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 from loguru import logger
 from loguru._defaults import LOGURU_FORMAT
@@ -96,3 +98,19 @@ def setup_logging() -> None:
         extra={"logger_name": "pAPI"},
     )
     logger.info("Logging initialized.")
+
+
+@contextmanager
+def disable_logging() -> Generator[None, None, None]:
+    """
+    Temporarily disable all logging within a context.
+
+    Useful for suppressing noisy output during initialization
+    or interactive shell startup.
+    """
+    previous_level = logging.root.manager.disable
+    logging.disable(logging.CRITICAL)
+    try:
+        yield
+    finally:
+        logging.disable(previous_level)

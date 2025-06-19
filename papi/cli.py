@@ -13,13 +13,12 @@ Author: Eduardo M. Fírvida Donestevez
 import asyncio
 import importlib
 import importlib.metadata
-import logging
 import os
 import sys
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from pathlib import Path
 from textwrap import dedent
-from typing import Any, AsyncGenerator, Dict, Generator, Set
+from typing import Any, AsyncGenerator, Dict, Set
 
 import anyio
 import click
@@ -35,56 +34,15 @@ from papi.core.addons import (
     get_router_from_addon,
     has_static_files,
 )
-from papi.core.cli.registry import registry as main_cli_registry
 from papi.core.db import get_redis_client
 from papi.core.exceptions import APIException
 from papi.core.init import init_base_system, init_mcp_server, shutdown_addons
-from papi.core.logger import logger, setup_logging
+from papi.core.logger import disable_logging, logger, setup_logging
 from papi.core.models.config import GeneralInfoConfig
 from papi.core.response import create_response
 from papi.core.settings import get_config
 
 __version__ = importlib.metadata.version("papi")
-_registry_initialized = False
-
-
-def init_addons_commands():
-    """
-    Initialize addon commands lazily and only once.
-
-    This function:
-    1. Discovers and registers addon CLI commands
-    2. Ensures single initialization through a global flag
-    3. Handles conflicts and errors gracefully
-    """
-    global _registry_initialized
-    if _registry_initialized:
-        return
-
-    logger.debug("Initializing addon commands")
-
-    for addon_command in main_cli_registry.get_all_registered_commands():
-        command_name = addon_command.name
-
-        # Skip invalid commands
-        if not command_name:
-            logger.debug("Skipping unnamed addon command")
-            continue
-        if command_name in cli.commands:
-            logger.warning(
-                f"Command conflict: '{command_name}' already exists - skipping"
-            )
-            continue
-        if not callable(getattr(addon_command, "callback", None)):
-            logger.warning(f"Addon command '{command_name}' has no valid callback")
-            continue
-
-        # Register valid commands
-        try:
-            cli.add_command(addon_command, name=command_name)
-            logger.info(f"Registered addon command: {command_name}")
-        except Exception as e:
-            logger.error(f"Failed to register command '{command_name}': {e}")
 
 
 def get_banner() -> str:
@@ -103,22 +61,6 @@ def get_banner() -> str:
     |  __/ /_/   \_\|_|    |___|       |____/ |_| |_| \___||_||_|
     |_|                                      Version: {version_str}
     """)
-
-
-@contextmanager
-def disable_logging() -> Generator[None, None, None]:
-    """
-    Temporarily disable all logging within a context.
-
-    Useful for suppressing noisy output during initialization
-    or interactive shell startup.
-    """
-    previous_level = logging.root.manager.disable
-    logging.disable(logging.CRITICAL)
-    try:
-        yield
-    finally:
-        logging.disable(previous_level)
 
 
 def get_mcp_server(as_sse: bool = False) -> Any:
@@ -381,6 +323,7 @@ def cli(ctx, config):
             setup_logging()
             ctx.obj["_initialized"] = True
             logger.debug("CLI initialized successfully.")
+
         except Exception as e:
             logger.critical("Failed to initialize configuration or logging", exc_info=e)
             sys.exit(1)
