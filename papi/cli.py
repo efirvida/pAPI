@@ -32,14 +32,13 @@ from fastapi.staticfiles import StaticFiles
 from IPython.terminal.embed import InteractiveShellEmbed
 
 from papi.core.addons import (
-    AddonsGraph,
     get_router_from_addon,
     has_static_files,
 )
 from papi.core.cli.registry import registry as main_cli_registry
 from papi.core.db import get_redis_client
 from papi.core.exceptions import APIException
-from papi.core.init import init_base_system, init_mcp_server
+from papi.core.init import init_base_system, init_mcp_server, shutdown_addons
 from papi.core.logger import logger, setup_logging
 from papi.core.models.config import GeneralInfoConfig
 from papi.core.response import create_response
@@ -47,7 +46,6 @@ from papi.core.settings import get_config
 
 __version__ = importlib.metadata.version("papi")
 _registry_initialized = False
-_addons_graph = AddonsGraph()
 
 
 def init_addons_commands():
@@ -246,6 +244,10 @@ async def run_api_server(app: FastAPI) -> AsyncGenerator:
     finally:
         # Phase 6: Resource cleanup
         logger.info("Starting application shutdown...")
+
+        if modules:
+            await shutdown_addons(modules)
+
         if redis_client:
             logger.debug("Closing Redis connection...")
             await redis_client.aclose()

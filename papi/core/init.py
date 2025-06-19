@@ -82,18 +82,54 @@ def discover_addon_commands(
     logger.info(f"Completed command discovery for {len(modules)} addons")
 
 
-async def init_addons(modules: dict[str, ModuleType]) -> None:
+async def startup_addons(modules: dict[str, ModuleType]) -> None:
     """
-    Initialize and execute setup hooks for all registered addon modules.
+    Initializes and executes startup hooks for all registered addon modules.
+
+    Args:
+        modules (dict[str, ModuleType]): A dictionary mapping addon IDs to their loaded modules.
+
+    This function retrieves all startup hook factories from each module using `get_addon_setup_hooks`,
+    instantiates each hook, and calls its `startup()` coroutine.
     """
     for addon_id, module in modules.items():
+        logger.debug(f"Initializing startup hooks for addon '{addon_id}'")
         hook_factories: list[Callable[[], AddonSetupHook]] = get_addon_setup_hooks(
             module
         )
 
-        for hook_factory in hook_factories:
-            setup_hook = hook_factory()
-            await setup_hook.run()
+        for factory in hook_factories:
+            try:
+                hook = factory()
+                await hook.startup()
+                logger.debug(f"Startup completed for addon '{addon_id}' hook: {hook}")
+            except Exception as e:
+                logger.exception(f"Error during startup of addon '{addon_id}': {e}")
+
+
+async def shutdown_addons(modules: dict[str, ModuleType]) -> None:
+    """
+    Initializes and executes shutdown hooks for all registered addon modules.
+
+    Args:
+        modules (dict[str, ModuleType]): A dictionary mapping addon IDs to their loaded modules.
+
+    This function retrieves all shutdown hook factories from each module using `get_addon_setup_hooks`,
+    instantiates each hook, and calls its `shutdown()` coroutine.
+    """
+    for addon_id, module in modules.items():
+        logger.debug(f"Initializing shutdown hooks for addon '{addon_id}'")
+        hook_factories: list[Callable[[], AddonSetupHook]] = get_addon_setup_hooks(
+            module
+        )
+
+        for factory in hook_factories:
+            try:
+                hook = factory()
+                await hook.shutdown()
+                logger.debug(f"Shutdown completed for addon '{addon_id}' hook: {hook}")
+            except Exception as e:
+                logger.exception(f"Error during shutdown of addon '{addon_id}': {e}")
 
 
 async def init_mongodb(config, modules: dict[str, ModuleType]) -> dict[str, type]:
@@ -295,7 +331,7 @@ async def init_base_system(init_db_system: bool = True) -> dict | None:
         beanie_document_models = []
         sql_models = []
 
-    await init_addons(modules)
+    await startup_addons(modules)
 
     return {
         "modules": modules,

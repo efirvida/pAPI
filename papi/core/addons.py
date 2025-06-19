@@ -28,10 +28,6 @@ class AddonSetupHook:
     Subclasses may override any of the following methods.
     """
 
-    async def run(self) -> None:
-        """Executed once during addon registration or initialization."""
-        pass
-
     async def startup(self) -> None:
         """Executed during startup event."""
         pass
