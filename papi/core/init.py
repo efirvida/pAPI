@@ -1,4 +1,3 @@
-import importlib
 from types import ModuleType
 from typing import Callable, Optional, Type
 
@@ -23,8 +22,6 @@ from papi.core.addons import (
     get_sqlalchemy_models_from_addon,
     load_and_import_all_addons,
 )
-from papi.core.cli import CLIRegistry
-from papi.core.cli import registry as main_cli_registry
 from papi.core.db import (
     create_database_if_not_exists,
     extract_bases_from_models,
@@ -35,51 +32,6 @@ from papi.core.mcp import create_sse_server
 from papi.core.router import MPCRouter
 from papi.core.settings import get_config
 from papi.core.utils import install_python_dependencies
-
-
-def discover_addon_commands(
-    registry: CLIRegistry, modules: dict[str, ModuleType]
-) -> None:
-    """
-    Discovers and registers CLI commands from enabled addons.
-
-    This function:
-    1. Retrieves addon configuration
-    2. Builds addon dependency graph
-    3. Loads and imports addon modules
-    4. Discovers and registers CLI commands from each addon
-
-    Args:
-        registry: Command registry instance to register commands with
-
-    Raises:
-        RuntimeError: If critical failure occurs during discovery
-    """
-
-    # Process each addon for CLI commands
-    logger.debug("Discovering CLI commands in addons")
-    for addon_id, module in modules.items():
-        try:
-            logger.debug(f"Processing addon: {addon_id}")
-
-            # Attempt to import CLI module
-            cli_module = importlib.import_module(f"{module.__package__}.cli")
-
-            # Register commands if available
-            if hasattr(cli_module, "register_commands"):
-                logger.info(f"Registering commands for addon: {addon_id}")
-                cli_module.register_commands(registry, addon_id)
-            else:
-                logger.debug(f"No CLI commands found in addon: {addon_id}")
-
-        except ImportError:
-            logger.debug(f"Addon '{addon_id}' has no CLI module")
-        except Exception as e:
-            logger.warning(
-                f"Failed to register CLI for addon '{addon_id}': {e}", exc_info=True
-            )
-
-    logger.info(f"Completed command discovery for {len(modules)} addons")
 
 
 async def startup_addons(modules: dict[str, ModuleType]) -> None:
@@ -296,7 +248,6 @@ async def init_base_system(init_db_system: bool = True) -> dict | None:
             install_python_dependencies(python_deps)
 
         modules = load_and_import_all_addons(addons_graph)
-        discover_addon_commands(registry=main_cli_registry, modules=modules)
 
     except (ValueError, ImportError) as e:
         logger.exception(f"Failed to load addons: {e}")
