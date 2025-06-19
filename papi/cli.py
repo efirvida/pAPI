@@ -25,7 +25,6 @@ import anyio
 import click
 import nest_asyncio
 import uvicorn
-from click import Context
 from click_default_group import DefaultGroup
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -365,33 +364,21 @@ def setup_api_exception_handler(app: FastAPI) -> None:
     "--config",
     default="config.yaml",
     show_default=True,
-    help="Path to configuration file.",
+    help="Path to configuration file. Default is '${PWD}/config.yaml'.",
 )
 @click.pass_context
-def cli(ctx: Context, config: str) -> None:
-    """
-    Main entry point for pAPI service management CLI.
+def cli(ctx, config):
+    if ctx.obj is None:
+        ctx.obj = {}
 
-    Provides subcommands to launch the system in different modes,
-    including interactive shell, web server, and MCP server.
-    """
-    ctx.ensure_object(dict)
-    ctx.obj["CONFIG_PATH"] = config
-
-
-def init_logging_and_config(ctx: click.Context) -> None:
-    """
-    Initialize configuration and logging if not already initialized.
-    """
-    if not getattr(ctx, "obj_initialized", False):
+    if not ctx.obj.get("_initialized", False):
         try:
-            config_path = ctx.obj.get("CONFIG_PATH")
-            if not config_path:
-                raise ValueError("Configuration path not provided.")
+            cfg = get_config(config)
+            ctx.obj["config"] = cfg
 
-            ctx.obj["CONFIG"] = get_config(config_path)
             setup_logging()
-            ctx.obj_initialized = True
+            ctx.obj["_initialized"] = True
+            logger.debug("CLI initialized successfully.")
         except Exception as e:
             logger.critical("Failed to initialize configuration or logging", exc_info=e)
             sys.exit(1)
@@ -412,8 +399,6 @@ def shell() -> None:
     Usage:
     $ papi shell
     """
-    ctx = click.get_current_context()
-    init_logging_and_config(ctx)
     nest_asyncio.apply()  # Enable nested event loops
 
     async def start_shell() -> None:
@@ -457,16 +442,12 @@ def webserver() -> None:
     Usage:
     $ papi webserver
     """
-    ctx = click.get_current_context()
-    init_logging_and_config(ctx)
-
     try:
         logger.info("Creating FastAPI application")
         app = create_fastapi_app()
         setup_api_exception_handler(app)
 
         config = get_config()
-        logger.info(f"Starting webserver at {config.server.host}:{config.server.port}")
 
         uvicorn_config = uvicorn.Config(
             app,
@@ -495,9 +476,6 @@ def mcpserver() -> None:
     Usage:
     $ papi mcpserver
     """
-    ctx = click.get_current_context()
-    init_logging_and_config(ctx)
-
     try:
         logger.info("Initializing MCP server")
         mcp = get_mcp_server(as_sse=False)
@@ -510,7 +488,6 @@ def mcpserver() -> None:
 
 if __name__ == "__main__":
     try:
-        init_addons_commands()
         cli(prog_name="papi")
     except Exception as e:
         logger.critical(f"CLI runtime error: {e}", exc_info=True)
