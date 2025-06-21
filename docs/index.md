@@ -26,7 +26,7 @@ Aquí tienes una versión más clara, profesional y precisa de la sección, con 
 
 ### 🧩 Modular Architecture
 
-* Addons are self-contained: they register their own routers, models, CLI commands, and lifecycle hooks.
+* Addons are self-contained: they register their own routers, models, and lifecycle hooks.
 * Route behavior can be extended or overridden by other addons.
 * Each addon can expose tools through standard HTTP endpoints or as **Model Context Protocol (MCP)**-compatible tools for agent-based workflows.
 
@@ -202,7 +202,6 @@ $ papi_cli shell             # Open an interactive, async-ready developer shell
 #### 🧠 Key Features
 
 * ✅ **Async-aware interactive shell** (with full `await` support), powered by IPython if available.
-* 🧩 **Addon-aware**: all loaded addons can inject their own CLI commands.
 * ⚙️ **Config-aware**: automatically loads `config.yaml` and injects environment context.
 
 ---
@@ -214,13 +213,6 @@ $ rye run python papi/cli.py --help
 ```
 
 ```text
-           _     ____   ___  
- ___      / \   |  _ \ |_ _|
-|  _ \   / _ \  | |_) | | | 
-| |_) | / ___ \ |  __/  | | 
-|  __/ /_/   \_\|_|    |___|
-|_|   Version: v0.0.1
-
 Usage: cli.py [OPTIONS] COMMAND [ARGS]...
 
   Main entry point for pAPI service management CLI.
@@ -270,7 +262,7 @@ user = result.scalar_one_or_none()
 
 ## 📦 Addon System
 
-pAPI provides a robust, modular plugin system via **addons**—isolated Python modules that encapsulate logic, routes, models, CLI commands, configuration, and static assets. This architecture promotes separation of concerns, extensibility, and reusability.
+pAPI provides a robust, modular plugin system via **addons**—isolated Python modules that encapsulate logic, routes, models, configuration, and static assets. This architecture promotes separation of concerns, extensibility, and reusability.
 
 ---
 
@@ -284,8 +276,7 @@ addons/
     ├── __init__.py
     ├── manifest.yaml
     ├── routers.py
-    ├── models.py
-    └── cli.py
+    └── models.py
 ```
 
 Each addon behaves as a self-contained package and is dynamically discovered and registered at runtime based on the configuration.

@@ -14,7 +14,6 @@ nav:
       - Router: reference/router.md
       - Settings: reference/settings.md
       - DB: reference/db.md
-      - CLI: reference/cli.md
       - Models: reference/models.md
     - build in addons:
       - Image Storage: build-in-addons/image_storage.md
