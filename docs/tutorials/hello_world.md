@@ -11,7 +11,7 @@ my_addons/
 └── hello_world/
     ├── __init__.py
     ├── manifest.yaml
-    ├── routers.py
+    └── routers.py
 ```
 
 ### 2️⃣ Define the `manifest.yaml`

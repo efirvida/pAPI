@@ -8,6 +8,7 @@ nav:
     - Home: index.md
     - Getting started:
       - Your first Addon: tutorials/hello_world.md
+      - Addon Life cycle: tutorials/hello_world_2.md
       - The weather example: tutorials/weather.md
   - API Reference:
     - pAPI Core:
@@ -15,9 +16,6 @@ nav:
       - Settings: reference/settings.md
       - DB: reference/db.md
       - Models: reference/models.md
-    - build in addons:
-      - Image Storage: build-in-addons/image_storage.md
-      - User Authentication: build-in-addons/user_auth_system.md
 
 theme:
   name: material
