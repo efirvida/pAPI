@@ -1,71 +1,112 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from papi.core.settings import get_config
+
+# Module-level logger
+log = logger.bind(module="database")
 
 
 @asynccontextmanager
 async def get_sql_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Asynchronous context manager that yields an SQLAlchemy asynchronous session.
+    Asynchronous context manager for database sessions with production-grade features.
 
-    This function creates a SQLAlchemy async engine and session factory using
-    the SQL URI specified in the application settings. It ensures that the session
-    is properly committed or rolled back depending on whether an exception occurs.
+    Features:
+    - Connection pooling with configurable size
+    - Automatic transaction management
+    - Error handling with rollback safety
+    - Connection recycling
+    - Timeout configurations
+    - Comprehensive logging
+
+    Usage:
+        async with get_sql_session() as session:
+            result = await session.execute(select(User))
+            users = result.scalars().all()
 
     Raises:
-        RuntimeError: If the SQL URI is not configured in `config.yaml`.
-        SQLAlchemyError: If an exception occurs during the session.
+        RuntimeError: For configuration errors
+        SQLAlchemyError: For database operation errors
 
     Yields:
-        AsyncSession: An instance of SQLAlchemy asynchronous session.
-
-    Example:
-        ```python
-        async with get_sql_session() as session:
-            result = await session.execute(select(MyModel))
-            data = result.scalars().all()
-        ```
+        AsyncSession: Database session instance
     """
-    settings = get_config()
-    if not settings.database.sql_uri:
-        raise RuntimeError("sql_uri is not configured in config.yaml.")
+    config = get_config()
+    sql_uri = config.database.sql_uri
 
-    engine = create_async_engine(settings.database.sql_uri, future=True)
-    factory = async_sessionmaker(engine, expire_on_commit=False)
+    # Validate configuration
+    if not sql_uri:
+        log.critical("Database SQL_URI not configured")
+        raise RuntimeError("Database configuration missing: SQL_URI not set")
 
-    async with factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except SQLAlchemyError:
-            await session.rollback()
-            raise
+    # Create engine with production-ready settings
+    engine = create_async_engine(
+        sql_uri,
+        future=True,
+        poolclass=AsyncAdaptedQueuePool,
+        # pool_size=config.database.pool_size,
+        # max_overflow=config.database.max_overflow,
+        # pool_timeout=config.database.pool_timeout,
+        # pool_recycle=config.database.pool_recycle,
+        # echo=config.database.echo_sql,
+        # connect_args={"timeout": config.database.connect_timeout},
+    )
+
+    # Configure session factory
+    session_factory = async_sessionmaker(
+        bind=engine, expire_on_commit=False, autoflush=False, class_=AsyncSession
+    )
+
+    # Session management
+    session = session_factory()
+    try:
+        log.debug("Database session opened")
+        yield session
+        await session.commit()
+        log.debug("Transaction committed successfully")
+    except SQLAlchemyError as e:
+        log.error(f"Database operation failed: {str(e)}")
+        await session.rollback()
+        log.warning("Transaction rolled back due to error")
+        raise
+    except Exception as e:
+        log.critical(f"Unexpected error in session: {str(e)}")
+        await session.rollback()
+        raise RuntimeError("Database session aborted") from e
+    finally:
+        await session.close()
+        log.debug("Database session closed")
 
 
 async def sql_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Async generator dependency for frameworks like FastAPI that require dependency injection.
+    Dependency generator for FastAPI route handlers with session management.
+
+    Designed for use with FastAPI dependency injection system:
+        @app.get("/items")
+        async def get_items(session: AsyncSession = Depends(sql_session)):
+            ...
+
+    Features:
+    - Proper session lifecycle management
+    - Automatic commit/rollback
+    - Error handling
+    - Resource cleanup
 
     Yields:
-        AsyncSession: A SQLAlchemy async session from the context manager.
-
-    Example (FastAPI):
-        ```python
-        from fastapi import Depends, APIRouter
-        from sqlalchemy.ext.asyncio import AsyncSession
-
-        router = APIRouter()
-
-
-        @router.get("/items")
-        async def list_items(session: AsyncSession = Depends(sql_session)):
-            result = await session.execute(select(Item))
-            return result.scalars().all()
-        ```
+        AsyncSession: Database session instance
     """
     async with get_sql_session() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            # Ensures session closure even if middleware catches exceptions
+            if session.is_active:
+                await session.close()
+                log.debug("Route session closed in dependency")

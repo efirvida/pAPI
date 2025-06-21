@@ -30,7 +30,7 @@
   Fully async, lazily loaded, and built on FastAPI’s high-performance core.
 
 - 🛠️ **Developer Tooling**  
-  Extensible CLI system and async-enabled IPython shell for rapid development.
+  Async-enabled IPython shell for rapid development.
 
 ---
 
@@ -42,8 +42,7 @@ These addons can:
 
 * Register API routes (`RESTRouter`)
 * Define database models (Beanie or SQLAlchemy)
-* Hook into startup processes (`AddonSetupHook`)
-* Extend the CLI with custom commands
+* Hook into startup, shutdown processes (`AddonSetupHook`)
 
 Together, they form a cohesive and scalable API system, enabling you to build robust, modular services by simply connecting or extending the building blocks your application needs.
 

@@ -1,4 +1,3 @@
-import os
 from types import ModuleType
 from typing import Callable, Optional, Type
 
@@ -17,7 +16,7 @@ from starlette.applications import Starlette
 from papi.core.addons import (
     AddonSetupHook,
     get_addon_setup_hooks,
-    get_addons_from_dirs,
+    get_addons_from_dir,
     get_beanie_documents_from_addon,
     get_router_from_addon,
     get_sqlalchemy_models_from_addon,
@@ -35,18 +34,54 @@ from papi.core.settings import get_config
 from papi.core.utils import install_python_dependencies
 
 
-async def init_addons(modules: dict[str, ModuleType]) -> None:
+async def startup_addons(modules: dict[str, ModuleType]) -> None:
     """
-    Initialize and execute setup hooks for all registered addon modules.
+    Initializes and executes startup hooks for all registered addon modules.
+
+    Args:
+        modules (dict[str, ModuleType]): A dictionary mapping addon IDs to their loaded modules.
+
+    This function retrieves all startup hook factories from each module using `get_addon_setup_hooks`,
+    instantiates each hook, and calls its `startup()` coroutine.
     """
     for addon_id, module in modules.items():
+        logger.debug(f"Initializing startup hooks for addon '{addon_id}'")
         hook_factories: list[Callable[[], AddonSetupHook]] = get_addon_setup_hooks(
             module
         )
 
-        for hook_factory in hook_factories:
-            setup_hook = hook_factory()
-            await setup_hook.run()
+        for factory in hook_factories:
+            try:
+                hook = factory()
+                await hook.startup()
+                logger.debug(f"Startup completed for addon '{addon_id}' hook: {hook}")
+            except Exception as e:
+                logger.exception(f"Error during startup of addon '{addon_id}': {e}")
+
+
+async def shutdown_addons(modules: dict[str, ModuleType]) -> None:
+    """
+    Initializes and executes shutdown hooks for all registered addon modules.
+
+    Args:
+        modules (dict[str, ModuleType]): A dictionary mapping addon IDs to their loaded modules.
+
+    This function retrieves all shutdown hook factories from each module using `get_addon_setup_hooks`,
+    instantiates each hook, and calls its `shutdown()` coroutine.
+    """
+    for addon_id, module in modules.items():
+        logger.debug(f"Initializing shutdown hooks for addon '{addon_id}'")
+        hook_factories: list[Callable[[], AddonSetupHook]] = get_addon_setup_hooks(
+            module
+        )
+
+        for factory in hook_factories:
+            try:
+                hook = factory()
+                await hook.shutdown()
+                logger.debug(f"Shutdown completed for addon '{addon_id}' hook: {hook}")
+            except Exception as e:
+                logger.exception(f"Error during shutdown of addon '{addon_id}': {e}")
 
 
 async def init_mongodb(config, modules: dict[str, ModuleType]) -> dict[str, type]:
@@ -181,7 +216,7 @@ async def init_sqlalchemy(
         raise RuntimeError(f"SQLAlchemy initialization error: {exc!r}")
 
 
-async def init_base_system(init_db_system: bool = True) -> dict:
+async def init_base_system(init_db_system: bool = True) -> dict | None:
     """
     Initialize the base system by loading addons and initializing the database.
 
@@ -197,15 +232,17 @@ async def init_base_system(init_db_system: bool = True) -> dict:
 
     # Define addon paths
     logger.info(f"Loading addons from: {config.addons.extra_addons_path}")
-    base_addons_path = os.path.abspath(os.path.join(__file__, "..", "..", "base"))
-    addons_paths = [config.addons.extra_addons_path, base_addons_path]
+    addons_path = config.addons.extra_addons_path
 
     try:
         # Discover and import addons
-        addons_graph = get_addons_from_dirs(
-            addons_paths=addons_paths,
+        addons_graph = get_addons_from_dir(
+            addons_path=addons_path,
             enabled_addons_ids=config.addons.enabled,
         )
+        if not addons_graph:
+            return
+
         python_deps = addons_graph.get_all_python_dependencies()
         if python_deps:
             install_python_dependencies(python_deps)
@@ -245,7 +282,7 @@ async def init_base_system(init_db_system: bool = True) -> dict:
         beanie_document_models = []
         sql_models = []
 
-    await init_addons(modules)
+    await startup_addons(modules)
 
     return {
         "modules": modules,

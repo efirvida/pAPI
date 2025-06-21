@@ -1,10 +1,14 @@
 import logging
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
-from core.settings import get_config
 from loguru import logger
 from loguru._defaults import LOGURU_FORMAT
+
+from papi.core.models.config import LoggerLevel
+from papi.core.settings import get_config
 
 
 class InterceptHandler(logging.Handler):
@@ -32,10 +36,16 @@ def setup_logging() -> None:
     """
     Configures logging for both stdlib and Loguru.
     """
+    try:
+        config = get_config()
+    except Exception as e:
+        logger.warning(f"configure logger 2 {e}")
+    if not config.logger.level:
+        level = LoggerLevel.INFO
+    else:
+        level = config.logger.level.upper()
 
-    config = get_config()
-
-    LOG_LEVEL = logging.getLevelName(config.logger.level.upper())
+    LOG_LEVEL = logging.getLevelName(level)
     JSON_LOGS = config.logger.json_log
     LOG_FILE = config.logger.log_file
 
@@ -88,3 +98,19 @@ def setup_logging() -> None:
         extra={"logger_name": "pAPI"},
     )
     logger.info("Logging initialized.")
+
+
+@contextmanager
+def disable_logging() -> Generator[None, None, None]:
+    """
+    Temporarily disable all logging within a context.
+
+    Useful for suppressing noisy output during initialization
+    or interactive shell startup.
+    """
+    previous_level = logging.root.manager.disable
+    logging.disable(logging.CRITICAL)
+    try:
+        yield
+    finally:
+        logging.disable(previous_level)
