@@ -38,7 +38,7 @@ from papi.core.db import get_redis_client
 from papi.core.exceptions import APIException
 from papi.core.init import init_base_system, init_mcp_server, shutdown_addons
 from papi.core.logger import disable_logging, logger, setup_logging
-from papi.core.models.config import GeneralInfoConfig
+from papi.core.models.config import FastAPIAppConfig, UvicornServerConfig
 from papi.core.response import create_response
 from papi.core.settings import get_config
 
@@ -220,15 +220,12 @@ def create_fastapi_app() -> FastAPI:
         # Validate essential configuration
         if not config.info:
             logger.warning("Missing info configuration - using defaults")
-            config.info = GeneralInfoConfig()  # Assume default config class exists
+            config.info = FastAPIAppConfig()  # Assume default config class exists
+
+        info_fields = config.info.defined_fields()
 
         # Create application with metadata
-        app = FastAPI(
-            title=config.info.title or "pAPI",
-            version=config.info.version or __version__,
-            description=config.info.description or "",
-            lifespan=run_api_server,
-        )
+        app = FastAPI(**info_fields, lifespan=run_api_server)
 
         logger.debug("FastAPI instance created successfully")
         return app
@@ -394,15 +391,13 @@ def webserver() -> None:
 
         config = get_config()
 
-        uvicorn_config = uvicorn.Config(
-            app,
-            host=config.server.host or "0.0.0.0",
-            port=config.server.port or 8000,
-            log_config=None,
-            access_log=False,
-            timeout_keep_alive=60,
-        )
+        if not config.server:
+            logger.warning("Missing uvicorn configuration - using defaults")
+            config.server = UvicornServerConfig()
 
+        uvicorn_config = uvicorn.Config(
+            app, log_config=None, access_log=False, **config.server.defined_fields()
+        )
         server = uvicorn.Server(uvicorn_config)
         server.run()
 

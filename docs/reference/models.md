@@ -4,13 +4,12 @@
     options:
         members:
             - AppConfig
-            - DatabaseConfig
-            - GeneralInfoConfig
-            - LoggerConfig
-            - LoggerLevel
-            - ServerConfig
-            - StorageConfig
+            - FastAPIAppConfig
+            - UvicornServerConfig
             - AddonsConfig
+            - LoggerConfig
+            - DatabaseConfig
+            - StorageConfig
 
 :::papi.core.models.addons 
     options:
