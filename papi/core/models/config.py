@@ -13,6 +13,8 @@ from typing import (
 
 from pydantic import BaseModel, Field, field_validator
 
+from .db.main import DatabaseConfig
+
 
 class StorageConfig(BaseModel):
     """
@@ -27,37 +29,6 @@ class StorageConfig(BaseModel):
 
     files: Optional[str] = ""
     images: Optional[str] = ""
-
-    class Config:
-        extra = "allow"
-
-
-class DatabaseConfig(BaseModel):
-    """
-    Connection URIs for supported databases.
-
-    Attributes:
-        mongodb_uri (Optional[str]): MongoDB connection string.
-        redis_uri (Optional[str]): Redis connection string.
-        sql_uri (Optional[str]): SQL database connection string (PostgreSQL, MySQL, or SQLite).
-
-    Extra fields are allowed and will be preserved.
-
-    Example:
-        ```python
-        DatabaseConfig(
-            mongodb_uri="mongodb://localhost:27017",
-            redis_uri="redis://localhost:6379",
-            sql_uri="postgresql+asyncpg://user:pass@localhost/dbname",
-        )
-        ```
-    """
-
-    mongodb_uri: Optional[str] = Field(default="", description="MongoDB connection URI")
-    redis_uri: Optional[str] = Field(default="", description="Redis connection URI")
-    sql_uri: Optional[str] = Field(
-        default="", description="SQL (PostgreSQL/MySQL/SQlite) connection URI"
-    )
 
     class Config:
         extra = "allow"

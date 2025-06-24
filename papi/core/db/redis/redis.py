@@ -1,6 +1,7 @@
 from typing import Optional
 from urllib.parse import urlparse, urlunparse
 
+from loguru import logger
 from redis.asyncio import Redis, from_url
 
 from papi.core.settings import get_config
@@ -24,7 +25,7 @@ def get_redis_uri_with_db(base_uri: str, db_index: int) -> str:
     return urlunparse(parsed._replace(path=new_path))
 
 
-async def get_redis_client() -> Redis | None:
+async def get_redis_client() -> Optional[Redis]:
     """
     Lazily initialize and return a singleton Redis client.
 
@@ -34,11 +35,30 @@ async def get_redis_client() -> Redis | None:
         Redis: An asyncio-compatible Redis client instance.
     """
     global _redis
+    if _redis is not None:
+        logger.debug("Reusing existing Redis client.")
+        return _redis
+
     config = get_config()
-    if _redis is None:
-        if config.database and config.database.redis_uri:
-            _redis = from_url(
-                config.database.redis_uri,
-                decode_responses=True,
-            )
+
+    if config.database:
+        redis_backend = config.database.get_backend("redis")
+        return None
+
+    if not redis_backend.url:
+        logger.warning(
+            "Redis URI is not configured. Redis client will not be initialized."
+        )
+        return None
+
+    logger.info("Initializing Redis client...")
+    logger.debug("Redis backend config: {}", redis_backend.get_defined_fields())
+
+    try:
+        _redis = from_url(**redis_backend.get_defined_fields())
+        logger.success("Redis client initialized successfully.")
+    except Exception as e:
+        logger.exception("Failed to initialize Redis client: {}", e)
+        _redis = None
+
     return _redis
