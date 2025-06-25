@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 from papi.core.settings import get_config
 
@@ -38,7 +37,7 @@ async def get_sql_session() -> AsyncGenerator[AsyncSession, None]:
         AsyncSession: Database session instance
     """
     config = get_config()
-    sql_uri = config.database.sql_uri
+    sql_alchemy_cfg = config.database.get_backend("sqlalchemy").get_defined_fields()
 
     # Validate configuration
     if not sql_uri:
@@ -46,17 +45,7 @@ async def get_sql_session() -> AsyncGenerator[AsyncSession, None]:
         raise RuntimeError("Database configuration missing: SQL_URI not set")
 
     # Create engine with production-ready settings
-    engine = create_async_engine(
-        sql_uri,
-        future=True,
-        poolclass=AsyncAdaptedQueuePool,
-        # pool_size=config.database.pool_size,
-        # max_overflow=config.database.max_overflow,
-        # pool_timeout=config.database.pool_timeout,
-        # pool_recycle=config.database.pool_recycle,
-        # echo=config.database.echo_sql,
-        # connect_args={"timeout": config.database.connect_timeout},
-    )
+    engine = create_async_engine(**sql_alchemy_cfg)
 
     # Configure session factory
     session_factory = async_sessionmaker(

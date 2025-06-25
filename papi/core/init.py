@@ -84,7 +84,9 @@ async def shutdown_addons(modules: dict[str, ModuleType]) -> None:
                 logger.exception(f"Error during shutdown of addon '{addon_id}': {e}")
 
 
-async def init_mongodb(config, modules: dict[str, ModuleType]) -> dict[str, type]:
+async def init_mongodb_beanie(
+    config, modules: dict[str, ModuleType]
+) -> dict[str, type]:
     """
     Initializes MongoDB (via Beanie) if documents are found and configuration is valid.
 
@@ -186,12 +188,12 @@ async def init_sqlalchemy(
 
     bases = extract_bases_from_models(sqlalchemy_models)
 
-    try:
-        await create_database_if_not_exists(config.database.sql_uri)
+    sql_alchemy_cfg = config.database.get_backend("sqlalchemy").get_defined_fields()
 
-        engine: AsyncEngine = create_async_engine(
-            config.database.sql_uri, echo=False, future=True
-        )
+    try:
+        await create_database_if_not_exists(sql_alchemy_cfg["url"])
+
+        engine: AsyncEngine = create_async_engine(**sql_alchemy_cfg)
 
         logger.info(
             f"SQLAlchemy engine initialized with {len(sqlalchemy_models)} models."
@@ -265,7 +267,7 @@ async def init_base_system(init_db_system: bool = True) -> dict | None:
     if init_db_system and config.database:
         # Init MongoDB Documents, and Beanie models on system Startup.
         if config.database.mongodb_uri:
-            beanie_document_models = await init_mongodb(config, modules)
+            beanie_document_models = await init_mongodb_beanie(config, modules)
         else:
             beanie_document_models = []
 

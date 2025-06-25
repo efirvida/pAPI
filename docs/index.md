@@ -17,9 +17,6 @@ pAPI is designed to let you build composable APIs through reusable "addons" (sel
 - Database abstraction with async support
 - Direct exposure of FastAPI routes as tools compatible with the **Model Context Protocol (MCP)** — enabling seamless integration with LLM-based agents
 
-
-Aquí tienes una versión más clara, profesional y precisa de la sección, con estilo consistente y mejor redacción técnica:
-
 ---
 
 ## 🔧 Core Features
@@ -191,7 +188,7 @@ All `APIException`s are automatically serialized into the same response format u
 
 ### 🛠️ Developer-Friendly CLI
 
-pAPI ships with a powerful, extensible CLI designed to streamline development, introspection, and deployment workflows.
+pAPI ships with a basic CLI designed to streamline development, introspection, and deployment workflows.
 
 ```bash
 $ papi_cli start webserver   # Launch the FastAPI server with all registered addons
@@ -403,7 +400,7 @@ pAPI is designed to enable modern backend patterns with minimal boilerplate. Som
   Architect modular applications where business logic, models, and routes are grouped by tenant, domain, or business unit.
 
 * **Internal Developer Tools & Microservices**
-  Rapidly prototype lightweight internal services or CLI-extended tools that benefit from a unified config, database access, and CLI environment.
+  Rapidly prototype lightweight internal services, MCP tools that benefit from a unified config, database access.
 
 ---
 
