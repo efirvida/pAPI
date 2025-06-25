@@ -9,7 +9,8 @@ nav:
     - Getting started:
       - Your first Addon: tutorials/hello_world.md
       - Addon Life cycle: tutorials/hello_world_2.md
-      - The weather example: tutorials/weather.md
+      - Weather API (MongoDB): tutorials/weather_mongodb.md
+      - Weather API (SQL): tutorials/weather_sqlalchemy.md
   - API Reference:
     - pAPI Core:
       - Router: reference/router.md

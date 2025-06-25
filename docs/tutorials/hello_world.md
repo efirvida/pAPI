@@ -119,6 +119,4 @@ Swagger docs are available at:
 
 ### ✅ What's Next?
 
-* Add **Beanie** or **SQLAlchemy** models — pAPI will detect and initialize them automatically
-* Add custom CLI commands in `cli.py`
 * Implement `AddonSetupHook` for custom startup logic

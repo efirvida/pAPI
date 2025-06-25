@@ -227,7 +227,7 @@ rye run python papi/cli.py webserver
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8080/stations' \
+  'http://localhost:8000/stations' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -265,7 +265,7 @@ curl -X 'POST' \
 
 ```bash
 curl -X 'GET' \
-  'http://localhost:8080/stations' \
+  'http://localhost:8000/stations' \
   -H 'accept: application/json'
 ```
 
@@ -299,7 +299,7 @@ curl -X 'GET' \
 
 ```bash
 curl -X 'GET' \
-  'http://localhost:8080/stations/684da177ebcda212e2ce8dac/weather' \
+  'http://localhost:8000/stations/684da177ebcda212e2ce8dac/weather' \
   -H 'accept: application/json' 
 ```
 
