@@ -62,3 +62,7 @@ from .addon_setup import HelloWorldAddonSetup
 That’s all you need!
 
 When the addon is loaded, the `startup` method will be executed automatically. When the application is stopped (e.g. by pressing `Ctrl+C` while running with `uvicorn`), the `shutdown` method will be called.
+
+### ✅ What's Next?
+
+* Add MongoDB models using **Beanie**

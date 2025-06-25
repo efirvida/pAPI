@@ -1,4 +1,4 @@
-## 🌦️ Weather Addon Example
+# 🌦️ Weather Addon Example (MongoDB Version)
 
 This addon demonstrates how to build a basic weather data API using **pAPI**, with persistent storage in MongoDB via the integrated **Beanie** ODM.
 
@@ -227,7 +227,7 @@ rye run python papi/cli.py webserver
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8080/stations' \
+  'http://localhost:8000/stations' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -265,7 +265,7 @@ curl -X 'POST' \
 
 ```bash
 curl -X 'GET' \
-  'http://localhost:8080/stations' \
+  'http://localhost:8000/stations' \
   -H 'accept: application/json'
 ```
 
@@ -299,7 +299,7 @@ curl -X 'GET' \
 
 ```bash
 curl -X 'GET' \
-  'http://localhost:8080/stations/684da177ebcda212e2ce8dac/weather' \
+  'http://localhost:8000/stations/684da177ebcda212e2ce8dac/weather' \
   -H 'accept: application/json' 
 ```
 
@@ -361,3 +361,7 @@ Confirm the change:
 In [7]: await mongo_documents["WeatherStation"].get(ObjectId('684daa34dc94122d9d84bac9'))
 Out[7]: WeatherStation(name='New Santa Clara', ...)
 ```
+
+### ✅ What's Next?
+
+* Add SQL models using **SQLAlchemy**

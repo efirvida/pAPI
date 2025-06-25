@@ -145,7 +145,7 @@ async def run_api_server(app: FastAPI) -> AsyncGenerator:
                 static_path = Path(module.__path__[0]) / "static"
                 if static_path.is_dir():
                     app.mount(
-                        f"/static/{addon_id}",
+                        f"/{addon_id}",
                         StaticFiles(directory=static_path),
                         name=f"{addon_id}_static",
                     )
