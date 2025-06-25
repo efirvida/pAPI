@@ -19,16 +19,8 @@ from .db.main import DatabaseConfig
 class StorageConfig(BaseModel):
     """
     Configuration for storage backends.
-
-    Attributes:
-        files (Optional[str]): Base path or URI for file storage.
-        images (Optional[str]): Base path or URI for image storage.
-
     Extra fields are allowed and will be preserved.
     """
-
-    files: Optional[str] = ""
-    images: Optional[str] = ""
 
     class Config:
         extra = "allow"

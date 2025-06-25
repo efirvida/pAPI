@@ -40,12 +40,13 @@ async def get_redis_client() -> Optional[Redis]:
         return _redis
 
     config = get_config()
+    redis_backend = None
 
     if config.database:
         redis_backend = config.database.get_backend("redis")
         return None
 
-    if not redis_backend.url:
+    if not redis_backend or not redis_backend.url:
         logger.warning(
             "Redis URI is not configured. Redis client will not be initialized."
         )

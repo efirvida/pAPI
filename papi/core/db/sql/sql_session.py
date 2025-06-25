@@ -40,7 +40,7 @@ async def get_sql_session() -> AsyncGenerator[AsyncSession, None]:
     sql_alchemy_cfg = config.database.get_backend("sqlalchemy").get_defined_fields()
 
     # Validate configuration
-    if not sql_uri:
+    if "url" not in sql_alchemy_cfg:
         log.critical("Database SQL_URI not configured")
         raise RuntimeError("Database configuration missing: SQL_URI not set")
 
