@@ -1,4 +1,4 @@
-## 🌦️ Weather Addon Example
+# 🌦️ Weather Addon Example (MongoDB Version)
 
 This addon demonstrates how to build a basic weather data API using **pAPI**, with persistent storage in MongoDB via the integrated **Beanie** ODM.
 
@@ -361,3 +361,7 @@ Confirm the change:
 In [7]: await mongo_documents["WeatherStation"].get(ObjectId('684daa34dc94122d9d84bac9'))
 Out[7]: WeatherStation(name='New Santa Clara', ...)
 ```
+
+### ✅ What's Next?
+
+* Add SQL models using **SQLAlchemy**

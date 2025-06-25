@@ -331,3 +331,7 @@ curl -X 'GET' \
   "timestamp": "2025-06-25T14:05:48.300713"
 }
 ```
+
+### ✅ What's Next?
+
+* Serve static files
