@@ -4,6 +4,12 @@
 
 pAPI is a lightweight, modular micro-framework built on top of FastAPI. It leverages FastAPI’s full feature set—routing, dependency injection, async support—without altering its internals or impacting performance. Instead, it enhances FastAPI’s routing system with dynamic discovery, a plugin-based architecture, and first-class support for agent-native endpoints, such as tools exposed via the Model Context Protocol (MCP). This makes pAPI especially well-suited for building composable microservices, intelligent agent interfaces, and modular backends.
 
+## 📖 Documentation Guide
+
+- **New to pAPI?** Start with [Your First Addon](tutorials/hello_world.md) to learn the basics
+- **Ready to build?** Check out the [Getting Started](#-quickstart) section below
+- **Need API details?** Browse the [API Reference](reference/router.md) section
+- **Want examples?** Explore the [Tutorials](tutorials/weather_mongodb.md) for real-world use cases
 ---
 
 ## ⚙️ What is pAPI?
