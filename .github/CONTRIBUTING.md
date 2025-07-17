@@ -7,9 +7,9 @@ Thank you for considering contributing to **pAPI**!
 1. **Fork** the repository.
 2. **Clone** your fork locally:
     ```bash
-    git clone https://github.com/efirvida/papi
-    cd papi
-````
+    git clone https://github.com/efirvida/pAPI
+    cd pAPI
+    ```
 
 3. **Create a new branch**:
 

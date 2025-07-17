@@ -1,4 +1,8 @@
-# `papi.core.settings`
+# Settings
+
+Configuration management utilities for pAPI applications.
+
+## API Reference
 
 ::: papi.core.settings
     options:

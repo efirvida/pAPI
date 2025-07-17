@@ -1,4 +1,8 @@
-# `papi.core.db`
+# Database Utilities
+
+pAPI provides utilities for working with multiple database backends including Redis, SQL databases (via SQLAlchemy), and MongoDB (via Beanie).
+
+## API Reference
 
 :::papi.core.db 
     options:

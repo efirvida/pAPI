@@ -6,9 +6,9 @@
 
 **pAPI** is a modular micro-framework built on top of FastAPI for composing scalable, tool-oriented APIs. It extends FastAPI’s routing system with native support for modular service architectures, addon discovery, and LLM tooling.
 
-> 📚 **Documentation**: Full documentation is currently a work in progress (WIP).  
+> 📚 **Documentation**: Full documentation is available at:  
 > 👉 [https://efirvida.github.io/pAPI/](https://efirvida.github.io/pAPI/)  
-> 🧪 Example addons are available in the [`extra_addons` branch](https://github.com/efirvida/pAPI/tree/extra_addons)
+> 🧪 Additional example addons and tutorials are included in the documentation
 
 ---
 
@@ -72,7 +72,11 @@ Addons are declared in `config.yaml`, allowing clean separation of concerns and 
 git clone https://github.com/efirvida/pAPI.git
 cd pAPI
 
-# Install dependencies (using pip, rye, or your preferred package manager)
+# Install dependencies
+# Option 1: Using rye (recommended)
+rye sync
+
+# Option 2: Using pip
 pip install -r requirements.lock
 
 # Start the server

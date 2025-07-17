@@ -4,20 +4,19 @@ site_author: Eduardo Miguel Fírvida Donestevez
 site_url: https://efirvida.github.io/pAPI/
 
 nav:
-  - Home: 
-    - Home: index.md
-    - Getting started:
-      - Your first Addon: tutorials/hello_world.md
-      - Addon Life cycle: tutorials/hello_world_2.md
-      - Weather API (MongoDB): tutorials/weather_mongodb.md
-      - Weather API (SQL): tutorials/weather_sqlalchemy.md
-      - Static Files: tutorials/website.md
+  - Home: index.md
+  - Getting Started:
+    - Your First Addon: tutorials/hello_world.md
+    - Addon Lifecycle: tutorials/hello_world_2.md
+    - Static Files: tutorials/website.md
+  - Tutorials:
+    - Weather API (MongoDB): tutorials/weather_mongodb.md
+    - Weather API (SQLAlchemy): tutorials/weather_sqlalchemy.md
   - API Reference:
-    - pAPI Core:
-      - Router: reference/router.md
-      - Settings: reference/settings.md
-      - DB: reference/db.md
-      - Models: reference/models.md
+    - Router: reference/router.md
+    - Settings: reference/settings.md
+    - Database: reference/db.md
+    - Models: reference/models.md
 
 theme:
   name: material

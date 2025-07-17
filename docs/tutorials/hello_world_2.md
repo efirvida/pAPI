@@ -53,7 +53,7 @@ class HelloWorldAddonSetup(AddonSetupHook):
 Finally, import your `HelloWorldAddonSetup` class in the addon's `__init__.py` so that pAPI can discover and register it automatically:
 
 ```python
-from .router import router as hello_router
+from .routers import router
 from .addon_setup import HelloWorldAddonSetup
 ```
 

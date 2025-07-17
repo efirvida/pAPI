@@ -382,7 +382,11 @@ storage: # mounted as static files to provide global static files foled
 git clone https://github.com/efirvida/pAPI
 cd pAPI
 
-# Install dependencies (using pip, rye, or your preferred package manager)
+# Install dependencies
+# Option 1: Using rye (recommended)
+rye sync
+
+# Option 2: Using pip
 pip install -r requirements.lock
 
 # Start the server
