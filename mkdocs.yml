@@ -1,7 +1,7 @@
 site_name: pAPI – Python/Pluggable API Framework
-site_description: pAPI – Official Documentación
+site_description: pAPI – Official Documentation
 site_author: Eduardo Miguel Fírvida Donestevez
-site_url: https://efirvida.github.io/papi/
+site_url: https://efirvida.github.io/pAPI/
 
 nav:
   - Home: 

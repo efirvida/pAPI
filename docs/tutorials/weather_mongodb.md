@@ -218,7 +218,7 @@ addons:
 ### 🚀 Start the API Server
 
 ```bash
-rye run python papi/cli.py webserver
+python papi/cli.py webserver
 ```
 
 ---
@@ -326,7 +326,7 @@ curl -X 'GET' \
 Access the MongoDB shell:
 
 ```bash
-rye run python papi/cli.py shell
+python papi/cli.py shell
 ```
 
 ### 🔍 Available Documents

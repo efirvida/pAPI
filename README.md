@@ -71,9 +71,13 @@ Addons are declared in `config.yaml`, allowing clean separation of concerns and 
 ```bash
 git clone https://github.com/efirvida/pAPI.git
 cd pAPI
-rye sync
-rye run python papi/cli.py --help
-````
+
+# Install dependencies (using pip, rye, or your preferred package manager)
+pip install -r requirements.lock
+
+# Start the server
+python papi/cli.py webserver
+```
 
 ---
 

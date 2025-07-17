@@ -171,7 +171,7 @@ addons:
 ### 🚀 Launch the server
 
 ```bash
-rye run python papi/cli.py webserver
+python papi/cli.py webserver
 ```
 
 ---
