@@ -13,14 +13,14 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeMeta
 from starlette.applications import Starlette
 
-from papi.core.addons import (
-    AddonSetupHook,
-    get_addon_setup_hooks,
-    get_addons_from_dir,
-    get_beanie_documents_from_addon,
-    get_router_from_addon,
-    get_sqlalchemy_models_from_addon,
-    load_and_import_all_addons,
+from papi.core.apps import (
+    AppSetupHook,
+    get_app_setup_hooks,
+    get_apps_from_dir,
+    get_beanie_documents_from_app,
+    get_router_from_app,
+    get_sqlalchemy_models_from_app,
+    load_and_import_all_apps,
 )
 from papi.core.db import (
     create_database_if_not_exists,
@@ -34,19 +34,19 @@ from papi.core.settings import get_config
 from papi.core.utils import install_python_dependencies
 
 
-async def startup_addons(modules: dict[str, ModuleType]) -> None:
+async def startup_apps(modules: dict[str, ModuleType]) -> None:
     """
-    Initializes and executes startup hooks for all registered addon modules.
+    Initializes and executes startup hooks for all registered app modules.
 
     Args:
-        modules (dict[str, ModuleType]): A dictionary mapping addon IDs to their loaded modules.
+        modules (dict[str, ModuleType]): A dictionary mapping app IDs to their loaded modules.
 
-    This function retrieves all startup hook factories from each module using `get_addon_setup_hooks`,
+    This function retrieves all startup hook factories from each module using `get_app_setup_hooks`,
     instantiates each hook, and calls its `startup()` coroutine.
     """
-    for addon_id, module in modules.items():
-        logger.debug(f"Initializing startup hooks for addon '{addon_id}'")
-        hook_factories: list[Callable[[], AddonSetupHook]] = get_addon_setup_hooks(
+    for app_id, module in modules.items():
+        logger.debug(f"Initializing startup hooks for app '{app_id}'")
+        hook_factories: list[Callable[[], AppSetupHook]] = get_app_setup_hooks(
             module
         )
 
@@ -54,24 +54,24 @@ async def startup_addons(modules: dict[str, ModuleType]) -> None:
             try:
                 hook = factory()
                 await hook.startup()
-                logger.debug(f"Startup completed for addon '{addon_id}' hook: {hook}")
+                logger.debug(f"Startup completed for app '{app_id}' hook: {hook}")
             except Exception as e:
-                logger.exception(f"Error during startup of addon '{addon_id}': {e}")
+                logger.exception(f"Error during startup of app '{app_id}': {e}")
 
 
-async def shutdown_addons(modules: dict[str, ModuleType]) -> None:
+async def shutdown_apps(modules: dict[str, ModuleType]) -> None:
     """
-    Initializes and executes shutdown hooks for all registered addon modules.
+    Initializes and executes shutdown hooks for all registered app modules.
 
     Args:
-        modules (dict[str, ModuleType]): A dictionary mapping addon IDs to their loaded modules.
+        modules (dict[str, ModuleType]): A dictionary mapping app IDs to their loaded modules.
 
-    This function retrieves all shutdown hook factories from each module using `get_addon_setup_hooks`,
+    This function retrieves all shutdown hook factories from each module using `get_app_setup_hooks`,
     instantiates each hook, and calls its `shutdown()` coroutine.
     """
-    for addon_id, module in modules.items():
-        logger.debug(f"Initializing shutdown hooks for addon '{addon_id}'")
-        hook_factories: list[Callable[[], AddonSetupHook]] = get_addon_setup_hooks(
+    for app_id, module in modules.items():
+        logger.debug(f"Initializing shutdown hooks for app '{app_id}'")
+        hook_factories: list[Callable[[], AppSetupHook]] = get_app_setup_hooks(
             module
         )
 
@@ -79,9 +79,9 @@ async def shutdown_addons(modules: dict[str, ModuleType]) -> None:
             try:
                 hook = factory()
                 await hook.shutdown()
-                logger.debug(f"Shutdown completed for addon '{addon_id}' hook: {hook}")
+                logger.debug(f"Shutdown completed for app '{app_id}' hook: {hook}")
             except Exception as e:
-                logger.exception(f"Error during shutdown of addon '{addon_id}': {e}")
+                logger.exception(f"Error during shutdown of app '{app_id}': {e}")
 
 
 async def init_mongodb_beanie(
@@ -97,7 +97,7 @@ async def init_mongodb_beanie(
 
     Args:
         config: The server configuration object.
-        modules: Dictionary of loaded addon modules.
+        modules: Dictionary of loaded app modules.
 
     Returns:
         A dictionary mapping document class names to their class definitions.
@@ -108,13 +108,13 @@ async def init_mongodb_beanie(
     beanie_document_models = {}
 
     # Buscar documentos en los módulos
-    logger.info("Searching for MongoDB documents in active addons")
-    for addon_id, module in modules.items():
-        addon_documents = get_beanie_documents_from_addon(module)
-        if addon_documents:
-            doc_names = [doc.__name__ for doc in addon_documents]
-            logger.debug(f"  → Documents from '{addon_id}': {', '.join(doc_names)}")
-            beanie_document_models.update(dict(zip(doc_names, addon_documents)))
+    logger.info("Searching for MongoDB documents in active apps")
+    for app_id, module in modules.items():
+        app_documents = get_beanie_documents_from_app(module)
+        if app_documents:
+            doc_names = [doc.__name__ for doc in app_documents]
+            logger.debug(f"  → Documents from '{app_id}': {', '.join(doc_names)}")
+            beanie_document_models.update(dict(zip(doc_names, app_documents)))
 
     if beanie_document_models and not config.database.mongodb_uri:
         logger.error("Found Beanie document models but MongoDB URI is not configured.")
@@ -150,12 +150,12 @@ async def init_sqlalchemy(
     create_tables: bool = True,
 ) -> Optional[dict[str, Type[DeclarativeMeta]]]:
     """
-    Initializes SQLAlchemy models from addon modules and optionally creates tables
+    Initializes SQLAlchemy models from app modules and optionally creates tables
     for all detected Base metadata classes.
 
     Args:
         config: Configuration object with database URI.
-        modules: Dictionary of addon modules.
+        modules: Dictionary of app modules.
         create_tables: Whether to automatically create tables in DB.
 
     Returns:
@@ -166,16 +166,16 @@ async def init_sqlalchemy(
     """
     sqlalchemy_models: dict[str, Type[DeclarativeMeta]] = {}
 
-    logger.info("Searching for SQLAlchemy models in active addons")
-    for addon_id, module in modules.items():
-        addon_models = get_sqlalchemy_models_from_addon(module)
-        if addon_models:
-            model_names = [model.__name__ for model in addon_models]
+    logger.info("Searching for SQLAlchemy models in active apps")
+    for app_id, module in modules.items():
+        app_models = get_sqlalchemy_models_from_app(module)
+        if app_models:
+            model_names = [model.__name__ for model in app_models]
             logger.debug(
-                f"  → SQLAlchemy models from '{addon_id}': {', '.join(model_names)}"
+                f"  → SQLAlchemy models from '{app_id}': {', '.join(model_names)}"
             )
             sqlalchemy_models.update({
-                name: model for name, model in zip(model_names, addon_models)
+                name: model for name, model in zip(model_names, app_models)
             })
 
     if not sqlalchemy_models:
@@ -220,49 +220,49 @@ async def init_sqlalchemy(
 
 async def init_base_system(init_db_system: bool = True) -> dict | None:
     """
-    Initialize the base system by loading addons and initializing the database.
+    Initialize the base system by loading apps and initializing the database.
 
     Returns:
         tuple:
-            - A dictionary mapping addon IDs to imported modules.
+            - A dictionary mapping app IDs to imported modules.
             - A dictionary mapping document class names to their class definitions.
 
     Raises:
-        RuntimeError: If addon loading fails due to misconfiguration or import errors.
+        RuntimeError: If app loading fails due to misconfiguration or import errors.
     """
     config = get_config()
 
-    # Define addon paths
-    logger.info(f"Loading addons from: {config.addons.extra_addons_path}")
-    addons_path = config.addons.extra_addons_path
+    # Define app paths
+    logger.info(f"Loading apps from: {config.apps.extra_apps_path}")
+    apps_path = config.apps.extra_apps_path
 
     try:
-        # Discover and import addons
-        addons_graph = get_addons_from_dir(
-            addons_path=addons_path,
-            enabled_addons_ids=config.addons.enabled,
+        # Discover and import apps
+        apps_graph = get_apps_from_dir(
+            apps_path=apps_path,
+            enabled_apps_ids=config.apps.enabled,
         )
-        if not addons_graph:
+        if not apps_graph:
             return
 
-        python_deps = addons_graph.get_all_python_dependencies()
+        python_deps = apps_graph.get_all_python_dependencies()
         if python_deps:
             install_python_dependencies(python_deps)
 
-        modules = load_and_import_all_addons(addons_graph)
+        modules = load_and_import_all_apps(apps_graph)
 
     except (ValueError, ImportError) as e:
-        logger.exception(f"Failed to load addons: {e}")
-        raise RuntimeError("Addon loading failed") from e
+        logger.exception(f"Failed to load apps: {e}")
+        raise RuntimeError("App loading failed") from e
     except Exception as e:
-        logger.exception(f"Unexpected error while loading addons: {e}")
+        logger.exception(f"Unexpected error while loading apps: {e}")
         modules = {}
 
-    logger.info(f"Loaded {len(modules)} addons")
+    logger.info(f"Loaded {len(modules)} apps")
 
-    for addon_id in modules:
-        addon = addons_graph.addons[addon_id]
-        logger.debug(f"  → {addon.name} (v{addon.version}) by {addon.authors}")
+    for app_id in modules:
+        app = apps_graph.apps[app_id]
+        logger.debug(f"  → {app.name} (v{app.version}) by {app.authors}")
 
     if init_db_system and config.database:
         # Init MongoDB Documents, and Beanie models on system Startup.
@@ -284,7 +284,7 @@ async def init_base_system(init_db_system: bool = True) -> dict | None:
         beanie_document_models = []
         sql_models = []
 
-    await startup_addons(modules)
+    await startup_apps(modules)
 
     return {
         "modules": modules,
@@ -299,12 +299,12 @@ def init_mcp_server(
     """
     Initialize the MCP (Model Context Protocol) server and register its tools.
 
-    MCP tools are discovered from the loaded addon modules. Tools are registered
+    MCP tools are discovered from the loaded app modules. Tools are registered
     by inspecting routes marked as `MPCRouter` instances or the Routes marked
     with the `is_mcp_tool` flag attribute.
 
     Args:
-        modules (dict[str, ModuleType]): A dictionary of loaded addon modules.
+        modules (dict[str, ModuleType]): A dictionary of loaded app modules.
         as_sse (bool, optional): If True, the server is wrapped as a Starlette SSE app. Defaults to False.
 
     Returns:
@@ -316,7 +316,7 @@ def init_mcp_server(
     for module in modules.values():
         loaded_tools = []
         logger.debug(f"  → Searching MCP tools in module: {module.__name__}")
-        routers = get_router_from_addon(module)
+        routers = get_router_from_app(module)
 
         for router in routers:
             for route in router.routes:

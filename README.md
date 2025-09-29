@@ -4,18 +4,18 @@
 
 # pAPI – Python/Pluggable API Framework
 
-**pAPI** is a modular micro-framework built on top of FastAPI for composing scalable, tool-oriented APIs. It extends FastAPI’s routing system with native support for modular service architectures, addon discovery, and LLM tooling.
+**pAPI** is a modular micro-framework built on top of FastAPI for composing scalable, tool-oriented APIs. It extends FastAPI’s routing system with native support for modular service architectures, app discovery, and LLM tooling.
 
 > 📚 **Documentation**: Full documentation is currently a work in progress (WIP).  
 > 👉 [https://efirvida.github.io/pAPI/](https://efirvida.github.io/pAPI/)  
-> 🧪 Example addons are available in the [`extra_addons` branch](https://github.com/efirvida/pAPI/tree/extra_addons)
+> 🧪 Example apps are available in the [`extra_apps` branch](https://github.com/efirvida/pAPI/tree/extra_apps)
 
 ---
 
 ## ✨ Key Features
 
 - 🔌 **Plug-and-Play Architecture**  
-  Modular addon system with automatic route discovery and dependency resolution.
+  Modular app system with automatic route discovery and dependency resolution.
 
 - 🧠 **LLM Tooling & MCP Integration**  
   Expose endpoints as tools for agent frameworks using SSE and standard response models.
@@ -34,19 +34,19 @@
 
 ---
 
-## 🧩 Addon System
+## 🧩 App System
 
-pAPI is built around a **composable addon architecture**, where each addon functions like a LEGO® piece—self-contained, reusable, and designed to interlock with others.
+pAPI is built around a **composable app architecture**, where each app functions like a LEGO® piece—self-contained, reusable, and designed to interlock with others.
 
-These addons can:
+These apps can:
 
 * Register API routes (`RESTRouter`)
 * Define database models (Beanie or SQLAlchemy)
-* Hook into startup, shutdown processes (`AddonSetupHook`)
+* Hook into startup, shutdown processes (`AppSetupHook`)
 
 Together, they form a cohesive and scalable API system, enabling you to build robust, modular services by simply connecting or extending the building blocks your application needs.
 
-Addons are declared in `config.yaml`, allowing clean separation of concerns and easy configuration.
+Apps are declared in `config.yaml`, allowing clean separation of concerns and easy configuration.
 
 ---
 
@@ -62,7 +62,7 @@ Addons are declared in `config.yaml`, allowing clean separation of concerns and 
   Launch structured APIs quickly with standardized behavior.
 
 - **Security and Auth Systems**  
-  Implement RBAC/ABAC policies using addon-based security modules.
+  Implement RBAC/ABAC policies using app-based security modules.
 
 ---
 
@@ -81,7 +81,7 @@ rye run python papi/cli.py --help
 
 Check the documentation for:
 
-* Addon development
+* App development
 * CLI usage
 * Response formatting
 * Database integrations

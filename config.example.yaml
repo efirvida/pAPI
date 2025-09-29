@@ -15,12 +15,12 @@ server:
   reload: true
   log_level: "info"
 
-# Addons configuration
-addons:
-  # List of enabled addons
+# Apps configuration
+apps:
+  # List of enabled apps
   enabled: []  # Example: ["hello_world", "weather"]
   
-  # Optional: specify paths for custom addons
+  # Optional: specify paths for custom apps
   paths: []
 
 # Database configuration (optional)

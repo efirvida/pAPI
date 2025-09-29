@@ -24,6 +24,7 @@ import anyio
 import click
 import nest_asyncio
 import uvicorn
+
 try:
     import granian
 except ImportError:
@@ -34,20 +35,17 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from IPython.terminal.embed import InteractiveShellEmbed
 
-from papi.core.addons import (
-    get_router_from_addon,
-    has_static_files,
-)
+from papi.core.apps import get_router_from_app, has_static_files
 from papi.core.db import get_redis_client
 from papi.core.exceptions import APIException
-from papi.core.init import init_base_system, init_mcp_server, shutdown_addons
+from papi.core.init import init_base_system, init_mcp_server, shutdown_apps
 from papi.core.logger import disable_logging, logger, setup_logging
 from papi.core.models.config import (
-    FastAPIAppConfig, 
-    ServerConfig, 
-    ServerType,
+    FastAPIAppConfig,
     GranianServerConfig,
-    UvicornServerConfig
+    ServerConfig,
+    ServerType,
+    UvicornServerConfig,
 )
 from papi.core.response import create_response
 from papi.core.settings import get_config
@@ -58,7 +56,7 @@ __version__ = importlib.metadata.version("papi")
 def create_fastapi_app_for_granian():
     """
     Create FastAPI app specifically for Granian server.
-    
+
     This wrapper function creates and returns a FastAPI application
     that can be used directly by Granian as an ASGI app.
     """
@@ -125,7 +123,7 @@ async def run_api_server(app: FastAPI) -> AsyncGenerator:
     Performs the following operations:
     1. Initializes the base system components
     2. Sets up Redis client connection
-    3. Registers addon routes and static assets
+    3. Registers app routes and static assets
     4. Mounts the MCP server endpoint
     5. Configures global storage directories
     6. Ensures proper resource cleanup on shutdown
@@ -149,34 +147,34 @@ async def run_api_server(app: FastAPI) -> AsyncGenerator:
         logger.debug("Establishing Redis connection...")
         redis_client = await get_redis_client()
 
-        # Phase 3: Addon registration
+        # Phase 3: App registration
         loaded_routers: Set[Any] = set()
         modules = base_system.get("modules", {}) if base_system else {}
 
-        for addon_id, module in modules.items():
-            # Register addon routes
-            if routers := get_router_from_addon(module):
+        for app_id, module in modules.items():
+            # Register app routes
+            if routers := get_router_from_app(module):
                 for router in routers:
                     if router not in loaded_routers:
                         app.include_router(router)
                         loaded_routers.add(router)
-                logger.info(f"Addon '{addon_id}': Registered {len(routers)} routes")
+                logger.info(f"App '{app_id}': Registered {len(routers)} routes")
 
             # Mount static assets
             if has_static_files(module):
                 static_path = Path(module.__path__[0]) / "static"
                 if static_path.is_dir():
                     app.mount(
-                        f"/{addon_id}",
+                        f"/{app_id}",
                         StaticFiles(directory=static_path),
-                        name=f"{addon_id}_static",
+                        name=f"{app_id}_static",
                     )
                     logger.debug(
-                        f"Addon '{addon_id}': Mounted static assets at {static_path}"
+                        f"App '{app_id}': Mounted static assets at {static_path}"
                     )
                 else:
                     logger.warning(
-                        f"Addon '{addon_id}': Missing static directory {static_path}"
+                        f"App '{app_id}': Missing static directory {static_path}"
                     )
 
         # Phase 4: MCP server setup
@@ -210,7 +208,7 @@ async def run_api_server(app: FastAPI) -> AsyncGenerator:
         logger.info("Starting application shutdown...")
 
         if modules:
-            await shutdown_addons(modules)
+            await shutdown_apps(modules)
 
         if redis_client:
             logger.debug("Closing Redis connection...")
@@ -358,7 +356,7 @@ def shell() -> None:
     - Pre-loaded document models
     - Helper functions for querying
     - All system components initialized
-    - Addon modules available
+    - App modules available
 
     Usage:
     $ papi shell
@@ -395,8 +393,8 @@ def shell() -> None:
 @cli.command(name="webserver")
 @click.option(
     "--server",
-    type=click.Choice(['granian', 'uvicorn']),
-    help="Server type to use (overrides config)"
+    type=click.Choice(["granian", "uvicorn"]),
+    help="Server type to use (overrides config)",
 )
 def webserver(server: str | None = None) -> None:
     """
@@ -427,14 +425,18 @@ def webserver(server: str | None = None) -> None:
 
         # Override server type if specified via CLI
         if server:
-            config.server.type = ServerType.GRANIAN if server == "granian" else ServerType.UVICORN
+            config.server.type = (
+                ServerType.GRANIAN if server == "granian" else ServerType.UVICORN
+            )
 
         # Get the appropriate server configuration
         server_config = config.server.get_server_config()
-        
+
         if config.server.type == ServerType.GRANIAN:
             if granian is None:
-                logger.error("Granian is not installed. Install it with: pip install granian")
+                logger.error(
+                    "Granian is not installed. Install it with: pip install granian"
+                )
                 logger.info("Falling back to Uvicorn...")
                 config.server.type = ServerType.UVICORN
                 server_config = config.server.uvicorn or UvicornServerConfig()
@@ -464,34 +466,42 @@ def _run_granian_server(app: FastAPI, config: GranianServerConfig) -> None:
     """Run the application using Granian server."""
     import subprocess
     import sys
-    
+
     try:
         # Use Granian CLI directly to avoid ASGI/RSGI interface issues
-        logger.info(f"Starting Granian server on {config.host}:{config.port} with {config.workers} workers")
-        
+        logger.info(
+            f"Starting Granian server on {config.host}:{config.port} with {config.workers} workers"
+        )
+
         # Build granian command with proper interface
         cmd = [
-            sys.executable, "-m", "granian",
-            "--interface", "asgi",  # Explicitly set ASGI interface
-            "--host", config.host,
-            "--port", str(config.port),
-            "--workers", str(config.workers),
+            sys.executable,
+            "-m",
+            "granian",
+            "--interface",
+            "asgi",  # Explicitly set ASGI interface
+            "--host",
+            config.host,
+            "--port",
+            str(config.port),
+            "--workers",
+            str(config.workers),
             "--factory",  # Important: tells granian to call the function
-            "papi.cli:create_fastapi_app_for_granian"
+            "papi.cli:create_fastapi_app_for_granian",
         ]
-        
+
         # Add optional parameters
-        if getattr(config, 'reload', False):
+        if getattr(config, "reload", False):
             cmd.extend(["--reload"])
-            
-        if getattr(config, 'access_log', False):
+
+        if getattr(config, "access_log", False):
             cmd.extend(["--access-log"])
-        
+
         logger.debug(f"Granian command: {' '.join(cmd)}")
-        
+
         # Execute granian
         subprocess.run(cmd, check=True)
-        
+
     except ImportError:
         logger.critical("Granian is not installed. Install with: pip install granian")
         raise
@@ -507,10 +517,7 @@ def _run_uvicorn_server(app: FastAPI, config: UvicornServerConfig) -> None:
     """Run the application using Uvicorn server."""
     try:
         uvicorn_config = uvicorn.Config(
-            app, 
-            log_config=None, 
-            access_log=False, 
-            **config.defined_fields()
+            app, log_config=None, access_log=False, **config.defined_fields()
         )
         server = uvicorn.Server(uvicorn_config)
         server.run()

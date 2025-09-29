@@ -1,15 +1,7 @@
 import ssl
 from enum import StrEnum
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -26,31 +18,31 @@ class StorageConfig(BaseModel):
         extra = "allow"
 
 
-class AddonsConfig(BaseModel):
+class AppsConfig(BaseModel):
     """
-    Configuration for the plugin/addon system.
+    Configuration for the plugin/app system.
 
     Attributes:
-        extra_addons_path (str): Filesystem path to external addons.
-        enabled (List[str]): List of enabled addon identifiers.
-        config (Dict[str, Dict[str, Any]]): Custom configuration per addon.
+        extra_apps_path (str): Filesystem path to external apps.
+        enabled (List[str]): List of enabled app identifiers.
+        config (Dict[str, Dict[str, Any]]): Custom configuration per app.
 
     Example:
         ```python
-        AddonsConfig(
-            extra_addons_path="/opt/plugins",
+        AppsConfig(
+            extra_apps_path="/opt/plugins",
             enabled=["image_storage", "auth"],
             config={"image_storage": {"quality": 90}, "auth": {"provider": "oauth2"}},
         )
         ```
     """
 
-    extra_addons_path: str = Field(..., description="Path to external addons directory")
+    extra_apps_path: str = Field(..., description="Path to external apps directory")
     enabled: List[str] = Field(
-        default_factory=list, description="List of enabled addons"
+        default_factory=list, description="List of enabled apps"
     )
     config: Dict[str, Dict[str, Any]] = Field(
-        default_factory=dict, description="Addon-specific configuration dictionary"
+        default_factory=dict, description="App-specific configuration dictionary"
     )
 
 
@@ -277,12 +269,12 @@ class UvicornServerConfig(BaseModel):
 class ServerType(StrEnum):
     """
     Available server types.
-    
+
     Enum:
         GRANIAN: Granian ASGI server (Rust-based, high performance).
         UVICORN: Uvicorn ASGI server (Python-based, standard).
     """
-    
+
     GRANIAN = "granian"
     UVICORN = "uvicorn"
 
@@ -290,10 +282,10 @@ class ServerType(StrEnum):
 class GranianServerConfig(BaseModel):
     """
     Configuration model for Granian server runtime.
-    
+
     This model encapsulates all server-level parameters that can be passed to Granian.
     Granian is a Rust-based ASGI server with high performance.
-    
+
     Attributes:
         host (str): The hostname or IP address where the server will bind.
         port (int): The TCP port where the server will listen (must be between 1 and 65535).
@@ -310,89 +302,52 @@ class GranianServerConfig(BaseModel):
         log_level (str): Log level ("debug", "info", "warning", "error", "critical").
         access_log (bool): Enable access logging.
         url_path_prefix (Optional[str]): URL path prefix for the application.
-        
+
     Notes:
         - Extra fields are allowed and will be preserved.
         - Use the `defined_fields()` method to retrieve only explicitly set values.
-        
+
     Example:
         ```python
         config = GranianServerConfig(host="0.0.0.0", port=8080, workers=4)
         granian.run(app, **config.defined_fields())
         ```
     """
-    
-    host: str = Field(
-        default="127.0.0.1", 
-        description="Host to bind the server to"
-    )
-    port: int = Field(
-        default=8000, 
-        description="Port to bind the server to"
-    )
-    workers: int = Field(
-        default=1, 
-        description="Number of worker processes"
-    )
-    threads: int = Field(
-        default=1, 
-        description="Number of threads per worker"
-    )
+
+    host: str = Field(default="127.0.0.1", description="Host to bind the server to")
+    port: int = Field(default=8000, description="Port to bind the server to")
+    workers: int = Field(default=1, description="Number of worker processes")
+    threads: int = Field(default=1, description="Number of threads per worker")
     interface: str = Field(
-        default="asgi", 
-        description="Server interface type (asgi or wsgi)"
+        default="asgi", description="Server interface type (asgi or wsgi)"
     )
-    http: str = Field(
-        default="auto", 
-        description="HTTP version (auto, 1, or 2)"
-    )
-    ws: bool = Field(
-        default=True, 
-        description="Enable WebSocket support"
-    )
-    reload: bool = Field(
-        default=False, 
-        description="Enable auto-reload in development"
-    )
+    http: str = Field(default="auto", description="HTTP version (auto, 1, or 2)")
+    ws: bool = Field(default=True, description="Enable WebSocket support")
+    reload: bool = Field(default=False, description="Enable auto-reload in development")
     reload_dir: Optional[str] = Field(
-        default=None, 
-        description="Directory to watch for reload"
+        default=None, description="Directory to watch for reload"
     )
     ssl_cert: Optional[Union[str, Path]] = Field(
-        default=None, 
-        description="Path to SSL certificate file"
+        default=None, description="Path to SSL certificate file"
     )
     ssl_key: Optional[Union[str, Path]] = Field(
-        default=None, 
-        description="Path to SSL key file"
+        default=None, description="Path to SSL key file"
     )
-    backlog: int = Field(
-        default=1024, 
-        description="Maximum pending connections"
-    )
-    log_level: str = Field(
-        default="info", 
-        description="Log level"
-    )
-    access_log: bool = Field(
-        default=False, 
-        description="Enable access logging"
-    )
-    url_path_prefix: Optional[str] = Field(
-        default=None, 
-        description="URL path prefix"
-    )
-    
+    backlog: int = Field(default=1024, description="Maximum pending connections")
+    log_level: str = Field(default="info", description="Log level")
+    access_log: bool = Field(default=False, description="Enable access logging")
+    url_path_prefix: Optional[str] = Field(default=None, description="URL path prefix")
+
     model_config = {
         "extra": "allow",
         "populate_by_name": True,
     }
-    
+
     def defined_fields(self) -> dict:
         """
         Return only the fields explicitly defined by the user,
         excluding unset fields, defaults, and None values.
-        
+
         Returns:
             dict: A dictionary with the explicitly set configuration fields.
         """
@@ -401,7 +356,7 @@ class GranianServerConfig(BaseModel):
             exclude_defaults=True,
             exclude_none=True,
         )
-        
+
     @field_validator("port")
     def validate_port(cls, v: int) -> int:
         """Ensure that the port is within the valid range (1–65535)."""
@@ -413,30 +368,27 @@ class GranianServerConfig(BaseModel):
 class ServerConfig(BaseModel):
     """
     Unified server configuration that supports multiple server backends.
-    
+
     Attributes:
         type (ServerType): Server type to use (granian or uvicorn).
         granian (Optional[GranianServerConfig]): Granian-specific configuration.
         uvicorn (Optional[UvicornServerConfig]): Uvicorn-specific configuration.
     """
-    
+
     type: ServerType = Field(
-        default=ServerType.GRANIAN,
-        description="Server type to use"
+        default=ServerType.GRANIAN, description="Server type to use"
     )
     granian: Optional[GranianServerConfig] = Field(
-        default_factory=GranianServerConfig,
-        description="Granian server configuration"
+        default_factory=GranianServerConfig, description="Granian server configuration"
     )
     uvicorn: Optional[UvicornServerConfig] = Field(
-        default=None,
-        description="Uvicorn server configuration"
+        default=None, description="Uvicorn server configuration"
     )
-    
+
     def get_server_config(self) -> Union[GranianServerConfig, UvicornServerConfig]:
         """
         Get the appropriate server configuration based on the selected type.
-        
+
         Returns:
             Union[GranianServerConfig, UvicornServerConfig]: Server configuration.
         """
@@ -490,7 +442,7 @@ class AppConfig(BaseModel):
         info (GeneralInfoConfig): General metadata.
         server (ServerConfig): Server options.
         database (DatabaseConfig): Connection strings for databases.
-        addons (AddonsConfig): Plugin system configuration.
+        apps (AppsConfig): Plugin system configuration.
         storage (StorageConfig): Paths for file/image storage.
 
     Example:
@@ -500,7 +452,7 @@ class AppConfig(BaseModel):
             info=GeneralInfoConfig(title="My API"),
             server=ServerConfig(host="0.0.0.0", port=8080),
             database=DatabaseConfig(sql_uri="sqlite:///./db.sqlite"),
-            addons=AddonsConfig(extra_addons_path="./addons", enabled=[]),
+            apps=AppsConfig(extra_apps_path="./apps", enabled=[]),
             storage=StorageConfig(files="/data/files"),
         )
         ```
@@ -509,6 +461,6 @@ class AppConfig(BaseModel):
     logger: LoggerConfig
     info: FastAPIAppConfig
     server: ServerConfig
-    addons: AddonsConfig
+    apps: AppsConfig
     database: DatabaseConfig | None = None
     storage: StorageConfig | None = None
