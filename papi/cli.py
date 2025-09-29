@@ -34,6 +34,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from IPython.terminal.embed import InteractiveShellEmbed
+from starlette.exceptions import HTTPException
 
 from papi.core.apps import get_router_from_app, has_static_files
 from papi.core.db import get_redis_client
@@ -257,13 +258,14 @@ def create_fastapi_app() -> FastAPI:
 
 def setup_api_exception_handler(app: FastAPI) -> None:
     """
-    Registers a global exception handler for custom API exceptions.
+    Registers global exception handlers for API exceptions and HTTP errors.
 
     This handler:
     1. Catches APIException instances
-    2. Structures consistent error responses
-    3. Preserves error details and headers
-    4. Returns standardized JSON error format
+    2. Catches HTTP exceptions (404, 405, etc.)
+    3. Structures consistent error responses
+    4. Preserves error details and headers
+    5. Returns standardized JSON error format
 
     Args:
         app: FastAPI application instance to register the handler
@@ -311,7 +313,61 @@ def setup_api_exception_handler(app: FastAPI) -> None:
             headers=exc.headers or {},
         )
 
-    logger.debug("Registered global API exception handler")
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(
+        request: Request, exc: HTTPException
+    ) -> JSONResponse:
+        """
+        Handles HTTP exceptions (404, 405, etc.) with custom pAPI responses.
+
+        Args:
+            request: Incoming request object
+            exc: Raised HTTPException instance
+
+        Returns:
+            JSONResponse: Formatted error response
+        """
+        # Create user-friendly messages for common HTTP errors
+        status_messages = {
+            404: "The requested resource could not be found",
+            405: "Method not allowed for this endpoint",
+            422: "Invalid request data provided",
+            500: "Internal server error occurred",
+        }
+
+        # Get user-friendly message or use default
+        user_message = status_messages.get(exc.status_code, str(exc.detail))
+
+        # Log the error appropriately
+        if exc.status_code >= 500:
+            logger.error(
+                f"HTTP {exc.status_code}: {user_message} - Path: {request.url.path}"
+            )
+        elif exc.status_code >= 400:
+            logger.warning(
+                f"HTTP {exc.status_code}: {user_message} - Path: {request.url.path}"
+            )
+
+        # Create standardized error response using pAPI format
+        error_response = create_response(
+            success=False,
+            message=user_message,
+            error={
+                "code": f"HTTP_{exc.status_code}",
+                "detail": str(exc.detail),
+                "message": user_message,
+                "status_code": exc.status_code,
+                "path": str(request.url.path),
+            },
+        )
+
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_response.model_dump(),
+            headers=getattr(exc, "headers", None) or {},
+        )
+
+    logger.debug("Registered global API exception handlers")
 
 
 @click.group(
