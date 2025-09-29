@@ -62,7 +62,7 @@ info:
 
 server:
   host: "127.0.0.1"
-  port: 8080
+  port: 8000
 
 addons:
   extra_addons_path: "my_addons"
@@ -75,16 +75,16 @@ addons:
 Start the server with:
 
 ```bash
-rye run python papi/cli.py webserver
+python papi/cli.py webserver
 ```
 
 Then access your new endpoint at:
-`http://localhost:8080/hello`
+`http://localhost:8000/hello`
 
 Or test via `curl`:
 
 ```bash
-curl -X GET http://localhost:8080/hello -H "accept: application/json"
+curl -X GET http://localhost:8000/hello -H "accept: application/json"
 ```
 
 Expected response:
@@ -105,7 +105,7 @@ Expected response:
 ```
 
 Swagger docs are available at:
-🔗 [http://localhost:8080/docs](http://localhost:8080/docs)
+🔗 [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 

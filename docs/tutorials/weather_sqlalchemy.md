@@ -255,7 +255,7 @@ pAPI allows fine-tuning of the database engine by providing additional configura
 ### 🚀 Start the API Server
 
 ```bash
-rye run python papi/cli.py webserver
+python papi/cli.py webserver
 ```
 Once the pAPI server is started, the system will automatically detect the SQLAlchemy models and route definitions, initialize the corresponding database tables, and register the API endpoints with the main FastAPI application.
 
@@ -291,7 +291,7 @@ curl -X 'POST' \
 
 ```bash
 curl -X 'GET' \
-  'http://localhost:8080/stations' \
+  'http://localhost:8000/stations' \
   -H 'accept: application/json'
 ```
 

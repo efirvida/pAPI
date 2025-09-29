@@ -1,9 +1,15 @@
 # pAPI — Pluggable Python API Framework
 
-> **GitHub**: [https://github.com/efirvida/papi](https://github.com/efirvida/papi)
+> **GitHub**: [https://github.com/efirvida/pAPI](https://github.com/efirvida/pAPI)
 
 pAPI is a lightweight, modular micro-framework built on top of FastAPI. It leverages FastAPI’s full feature set—routing, dependency injection, async support—without altering its internals or impacting performance. Instead, it enhances FastAPI’s routing system with dynamic discovery, a plugin-based architecture, and first-class support for agent-native endpoints, such as tools exposed via the Model Context Protocol (MCP). This makes pAPI especially well-suited for building composable microservices, intelligent agent interfaces, and modular backends.
 
+## 📖 Documentation Guide
+
+- **New to pAPI?** Start with [Your First Addon](tutorials/hello_world.md) to learn the basics
+- **Ready to build?** Check out the [Getting Started](#-quickstart) section below
+- **Need API details?** Browse the [API Reference](reference/router.md) section
+- **Want examples?** Explore the [Tutorials](tutorials/weather_mongodb.md) for real-world use cases
 ---
 
 ## ⚙️ What is pAPI?
@@ -75,13 +81,13 @@ async def my_tool():
 Start the full API + MCP tools with:
 
 ```bash
-rye run python papi/cli.py webserver
+python papi/cli.py webserver
 ```
 
 Or launch just the MCP interface:
 
 ```bash
-rye run python papi/cli.py mcpserver
+python papi/cli.py mcpserver
 ```
 
 ---
@@ -191,9 +197,9 @@ All `APIException`s are automatically serialized into the same response format u
 pAPI ships with a basic CLI designed to streamline development, introspection, and deployment workflows.
 
 ```bash
-$ papi_cli start webserver   # Launch the FastAPI server with all registered addons
-$ papi_cli start mcpserver   # Run the standalone MCP (agent) server
-$ papi_cli shell             # Open an interactive, async-ready developer shell
+$ python papi/cli.py webserver   # Launch the FastAPI server with all registered addons
+$ python papi/cli.py mcpserver   # Run the standalone MCP (agent) server
+$ python papi/cli.py shell       # Open an interactive, async-ready developer shell
 ```
 
 #### 🧠 Key Features
@@ -206,7 +212,7 @@ $ papi_cli shell             # Open an interactive, async-ready developer shell
 #### 🧪 CLI Overview
 
 ```bash
-$ rye run python papi/cli.py --help
+$ python papi/cli.py --help
 ```
 
 ```text
@@ -379,10 +385,18 @@ storage: # mounted as static files to provide global static files foled
 ## 🚀 Quickstart
 
 ```bash
-git clone https://github.com/your-org/papi
-cd papi
+git clone https://github.com/efirvida/pAPI
+cd pAPI
+
+# Install dependencies
+# Option 1: Using rye (recommended)
 rye sync
-rye run python papi/cli.py webserver
+
+# Option 2: Using pip
+pip install -r requirements.lock
+
+# Start the server
+python papi/cli.py webserver
 ```
 
 ---
