@@ -6,7 +6,6 @@ model discovery, and router registration for FastAPI and custom protocols.
 import importlib
 import os
 import sys
-from collections import defaultdict
 from graphlib import CycleError, TopologicalSorter
 from inspect import isclass, ismodule
 from pathlib import Path
@@ -80,9 +79,7 @@ class AppsGraph:
                 self.dependencies[dep] = set()
 
         self.required_python_dependencies.update(app.python_dependencies)
-        logger.debug(
-            f"Added app '{app_id}' with dependencies: {app.dependencies}"
-        )
+        logger.debug(f"Added app '{app_id}' with dependencies: {app.dependencies}")
 
     def add_with_dependencies(
         self,
@@ -116,9 +113,7 @@ class AppsGraph:
             logger.debug(f"App '{app_id}' already processed, skipping recursion")
             return
 
-        logger.debug(
-            f"Processing app '{app_id}' with dependencies {app.dependencies}"
-        )
+        logger.debug(f"Processing app '{app_id}' with dependencies {app.dependencies}")
         visited.add(app_id)
 
         for dep_id in app.dependencies:

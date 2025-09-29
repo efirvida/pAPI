@@ -23,24 +23,22 @@ class AppsConfig(BaseModel):
     Configuration for the plugin/app system.
 
     Attributes:
-        extra_apps_path (str): Filesystem path to external apps.
+        apps_dir (str): Filesystem path to apps directory.
         enabled (List[str]): List of enabled app identifiers.
         config (Dict[str, Dict[str, Any]]): Custom configuration per app.
 
     Example:
         ```python
         AppsConfig(
-            extra_apps_path="/opt/plugins",
+            apps_dir="/opt/apps",
             enabled=["image_storage", "auth"],
             config={"image_storage": {"quality": 90}, "auth": {"provider": "oauth2"}},
         )
         ```
     """
 
-    extra_apps_path: str = Field(..., description="Path to external apps directory")
-    enabled: List[str] = Field(
-        default_factory=list, description="List of enabled apps"
-    )
+    apps_dir: str = Field(..., description="Path to apps directory")
+    enabled: List[str] = Field(default_factory=list, description="List of enabled apps")
     config: Dict[str, Dict[str, Any]] = Field(
         default_factory=dict, description="App-specific configuration dictionary"
     )
@@ -452,7 +450,7 @@ class AppConfig(BaseModel):
             info=GeneralInfoConfig(title="My API"),
             server=ServerConfig(host="0.0.0.0", port=8080),
             database=DatabaseConfig(sql_uri="sqlite:///./db.sqlite"),
-            apps=AppsConfig(extra_apps_path="./apps", enabled=[]),
+            apps=AppsConfig(apps_dir="./apps", enabled=[]),
             storage=StorageConfig(files="/data/files"),
         )
         ```

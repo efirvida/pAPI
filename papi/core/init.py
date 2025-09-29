@@ -6,10 +6,7 @@ from mcp.server.fastmcp import FastMCP
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.orm import DeclarativeMeta
 from starlette.applications import Starlette
 
@@ -46,9 +43,7 @@ async def startup_apps(modules: dict[str, ModuleType]) -> None:
     """
     for app_id, module in modules.items():
         logger.debug(f"Initializing startup hooks for app '{app_id}'")
-        hook_factories: list[Callable[[], AppSetupHook]] = get_app_setup_hooks(
-            module
-        )
+        hook_factories: list[Callable[[], AppSetupHook]] = get_app_setup_hooks(module)
 
         for factory in hook_factories:
             try:
@@ -71,9 +66,7 @@ async def shutdown_apps(modules: dict[str, ModuleType]) -> None:
     """
     for app_id, module in modules.items():
         logger.debug(f"Initializing shutdown hooks for app '{app_id}'")
-        hook_factories: list[Callable[[], AppSetupHook]] = get_app_setup_hooks(
-            module
-        )
+        hook_factories: list[Callable[[], AppSetupHook]] = get_app_setup_hooks(module)
 
         for factory in hook_factories:
             try:
@@ -233,8 +226,8 @@ async def init_base_system(init_db_system: bool = True) -> dict | None:
     config = get_config()
 
     # Define app paths
-    logger.info(f"Loading apps from: {config.apps.extra_apps_path}")
-    apps_path = config.apps.extra_apps_path
+    logger.info(f"Loading apps from: {config.apps.apps_dir}")
+    apps_path = config.apps.apps_dir
 
     try:
         # Discover and import apps

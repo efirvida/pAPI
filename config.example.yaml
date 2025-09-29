@@ -17,11 +17,11 @@ server:
 
 # Apps configuration
 apps:
+  # Directory where apps are located
+  apps_dir: "./extra_apps"
+  
   # List of enabled apps
   enabled: []  # Example: ["hello_world", "weather"]
-  
-  # Optional: specify paths for custom apps
-  paths: []
 
 # Database configuration (optional)
 # database:
