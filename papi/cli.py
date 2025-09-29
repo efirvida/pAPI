@@ -24,6 +24,10 @@ import anyio
 import click
 import nest_asyncio
 import uvicorn
+try:
+    import granian
+except ImportError:
+    granian = None
 from click_default_group import DefaultGroup
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -38,11 +42,29 @@ from papi.core.db import get_redis_client
 from papi.core.exceptions import APIException
 from papi.core.init import init_base_system, init_mcp_server, shutdown_addons
 from papi.core.logger import disable_logging, logger, setup_logging
-from papi.core.models.config import FastAPIAppConfig, UvicornServerConfig
+from papi.core.models.config import (
+    FastAPIAppConfig, 
+    ServerConfig, 
+    ServerType,
+    GranianServerConfig,
+    UvicornServerConfig
+)
 from papi.core.response import create_response
 from papi.core.settings import get_config
 
 __version__ = importlib.metadata.version("papi")
+
+
+def create_fastapi_app_for_granian():
+    """
+    Create FastAPI app specifically for Granian server.
+    
+    This wrapper function creates and returns a FastAPI application
+    that can be used directly by Granian as an ASGI app.
+    """
+    app = create_fastapi_app()
+    setup_api_exception_handler(app)
+    return app
 
 
 def get_banner() -> str:
@@ -371,7 +393,12 @@ def shell() -> None:
 
 
 @cli.command(name="webserver")
-def webserver() -> None:
+@click.option(
+    "--server",
+    type=click.Choice(['granian', 'uvicorn']),
+    help="Server type to use (overrides config)"
+)
+def webserver(server: str | None = None) -> None:
     """
     Start the production FastAPI web server.
 
@@ -380,9 +407,12 @@ def webserver() -> None:
     - Static asset serving
     - MCP integration
     - Custom exception handling
+    - Choice between Granian (default, high-performance) and Uvicorn servers
 
     Usage:
-    $ papi webserver
+    $ papi webserver                    # Uses Granian by default
+    $ papi webserver --server granian   # Explicitly use Granian
+    $ papi webserver --server uvicorn   # Use Uvicorn instead
     """
     try:
         logger.info("Creating FastAPI application")
@@ -392,18 +422,101 @@ def webserver() -> None:
         config = get_config()
 
         if not config.server:
-            logger.warning("Missing uvicorn configuration - using defaults")
-            config.server = UvicornServerConfig()
+            logger.warning("Missing server configuration - using Granian defaults")
+            config.server = ServerConfig()
 
-        uvicorn_config = uvicorn.Config(
-            app, log_config=None, access_log=False, **config.server.defined_fields()
-        )
-        server = uvicorn.Server(uvicorn_config)
-        server.run()
+        # Override server type if specified via CLI
+        if server:
+            config.server.type = ServerType.GRANIAN if server == "granian" else ServerType.UVICORN
+
+        # Get the appropriate server configuration
+        server_config = config.server.get_server_config()
+        
+        if config.server.type == ServerType.GRANIAN:
+            if granian is None:
+                logger.error("Granian is not installed. Install it with: pip install granian")
+                logger.info("Falling back to Uvicorn...")
+                config.server.type = ServerType.UVICORN
+                server_config = config.server.uvicorn or UvicornServerConfig()
+                _run_uvicorn_server(app, server_config)
+            else:
+                logger.info("Starting Granian server...")
+                if isinstance(server_config, GranianServerConfig):
+                    _run_granian_server(app, server_config)
+                else:
+                    logger.error("Invalid Granian configuration")
+                    sys.exit(1)
+        else:
+            # Use Uvicorn
+            logger.info("Starting Uvicorn server...")
+            if isinstance(server_config, UvicornServerConfig):
+                _run_uvicorn_server(app, server_config)
+            else:
+                logger.error("Invalid Uvicorn configuration")
+                sys.exit(1)
 
     except Exception as e:
         logger.critical(f"Webserver startup failed: {e}", exc_info=True)
         sys.exit(1)
+
+
+def _run_granian_server(app: FastAPI, config: GranianServerConfig) -> None:
+    """Run the application using Granian server."""
+    import subprocess
+    import sys
+    
+    try:
+        # Use Granian CLI directly to avoid ASGI/RSGI interface issues
+        logger.info(f"Starting Granian server on {config.host}:{config.port} with {config.workers} workers")
+        
+        # Build granian command with proper interface
+        cmd = [
+            sys.executable, "-m", "granian",
+            "--interface", "asgi",  # Explicitly set ASGI interface
+            "--host", config.host,
+            "--port", str(config.port),
+            "--workers", str(config.workers),
+            "--factory",  # Important: tells granian to call the function
+            "papi.cli:create_fastapi_app_for_granian"
+        ]
+        
+        # Add optional parameters
+        if getattr(config, 'reload', False):
+            cmd.extend(["--reload"])
+            
+        if getattr(config, 'access_log', False):
+            cmd.extend(["--access-log"])
+        
+        logger.debug(f"Granian command: {' '.join(cmd)}")
+        
+        # Execute granian
+        subprocess.run(cmd, check=True)
+        
+    except ImportError:
+        logger.critical("Granian is not installed. Install with: pip install granian")
+        raise
+    except subprocess.CalledProcessError as e:
+        logger.critical(f"Granian process failed with exit code {e.returncode}")
+        raise
+    except Exception as e:
+        logger.critical(f"Granian server error: {e}", exc_info=True)
+        raise
+
+
+def _run_uvicorn_server(app: FastAPI, config: UvicornServerConfig) -> None:
+    """Run the application using Uvicorn server."""
+    try:
+        uvicorn_config = uvicorn.Config(
+            app, 
+            log_config=None, 
+            access_log=False, 
+            **config.defined_fields()
+        )
+        server = uvicorn.Server(uvicorn_config)
+        server.run()
+    except Exception as e:
+        logger.critical(f"Uvicorn server error: {e}", exc_info=True)
+        raise
 
 
 @cli.command(name="mcpserver")

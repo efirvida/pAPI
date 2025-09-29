@@ -274,6 +274,178 @@ class UvicornServerConfig(BaseModel):
         return v
 
 
+class ServerType(StrEnum):
+    """
+    Available server types.
+    
+    Enum:
+        GRANIAN: Granian ASGI server (Rust-based, high performance).
+        UVICORN: Uvicorn ASGI server (Python-based, standard).
+    """
+    
+    GRANIAN = "granian"
+    UVICORN = "uvicorn"
+
+
+class GranianServerConfig(BaseModel):
+    """
+    Configuration model for Granian server runtime.
+    
+    This model encapsulates all server-level parameters that can be passed to Granian.
+    Granian is a Rust-based ASGI server with high performance.
+    
+    Attributes:
+        host (str): The hostname or IP address where the server will bind.
+        port (int): The TCP port where the server will listen (must be between 1 and 65535).
+        workers (int): Number of worker processes to spawn.
+        threads (int): Number of threads per worker.
+        interface (str): Server interface type ("asgi" or "wsgi").
+        http (str): HTTP version to use ("auto", "1", or "2").
+        ws (bool): Enable WebSocket support.
+        reload (bool): Enable auto-reload in development mode.
+        reload_dir (Optional[str]): Directory to watch for reload.
+        ssl_cert (Optional[Union[str, Path]]): Path to the SSL certificate file.
+        ssl_key (Optional[Union[str, Path]]): Path to the SSL key file.
+        backlog (int): Maximum number of pending connections.
+        log_level (str): Log level ("debug", "info", "warning", "error", "critical").
+        access_log (bool): Enable access logging.
+        url_path_prefix (Optional[str]): URL path prefix for the application.
+        
+    Notes:
+        - Extra fields are allowed and will be preserved.
+        - Use the `defined_fields()` method to retrieve only explicitly set values.
+        
+    Example:
+        ```python
+        config = GranianServerConfig(host="0.0.0.0", port=8080, workers=4)
+        granian.run(app, **config.defined_fields())
+        ```
+    """
+    
+    host: str = Field(
+        default="127.0.0.1", 
+        description="Host to bind the server to"
+    )
+    port: int = Field(
+        default=8000, 
+        description="Port to bind the server to"
+    )
+    workers: int = Field(
+        default=1, 
+        description="Number of worker processes"
+    )
+    threads: int = Field(
+        default=1, 
+        description="Number of threads per worker"
+    )
+    interface: str = Field(
+        default="asgi", 
+        description="Server interface type (asgi or wsgi)"
+    )
+    http: str = Field(
+        default="auto", 
+        description="HTTP version (auto, 1, or 2)"
+    )
+    ws: bool = Field(
+        default=True, 
+        description="Enable WebSocket support"
+    )
+    reload: bool = Field(
+        default=False, 
+        description="Enable auto-reload in development"
+    )
+    reload_dir: Optional[str] = Field(
+        default=None, 
+        description="Directory to watch for reload"
+    )
+    ssl_cert: Optional[Union[str, Path]] = Field(
+        default=None, 
+        description="Path to SSL certificate file"
+    )
+    ssl_key: Optional[Union[str, Path]] = Field(
+        default=None, 
+        description="Path to SSL key file"
+    )
+    backlog: int = Field(
+        default=1024, 
+        description="Maximum pending connections"
+    )
+    log_level: str = Field(
+        default="info", 
+        description="Log level"
+    )
+    access_log: bool = Field(
+        default=False, 
+        description="Enable access logging"
+    )
+    url_path_prefix: Optional[str] = Field(
+        default=None, 
+        description="URL path prefix"
+    )
+    
+    model_config = {
+        "extra": "allow",
+        "populate_by_name": True,
+    }
+    
+    def defined_fields(self) -> dict:
+        """
+        Return only the fields explicitly defined by the user,
+        excluding unset fields, defaults, and None values.
+        
+        Returns:
+            dict: A dictionary with the explicitly set configuration fields.
+        """
+        return self.model_dump(
+            exclude_unset=True,
+            exclude_defaults=True,
+            exclude_none=True,
+        )
+        
+    @field_validator("port")
+    def validate_port(cls, v: int) -> int:
+        """Ensure that the port is within the valid range (1–65535)."""
+        if not (1 <= v <= 65535):
+            raise ValueError("Port must be between 1 and 65535")
+        return v
+
+
+class ServerConfig(BaseModel):
+    """
+    Unified server configuration that supports multiple server backends.
+    
+    Attributes:
+        type (ServerType): Server type to use (granian or uvicorn).
+        granian (Optional[GranianServerConfig]): Granian-specific configuration.
+        uvicorn (Optional[UvicornServerConfig]): Uvicorn-specific configuration.
+    """
+    
+    type: ServerType = Field(
+        default=ServerType.GRANIAN,
+        description="Server type to use"
+    )
+    granian: Optional[GranianServerConfig] = Field(
+        default_factory=GranianServerConfig,
+        description="Granian server configuration"
+    )
+    uvicorn: Optional[UvicornServerConfig] = Field(
+        default=None,
+        description="Uvicorn server configuration"
+    )
+    
+    def get_server_config(self) -> Union[GranianServerConfig, UvicornServerConfig]:
+        """
+        Get the appropriate server configuration based on the selected type.
+        
+        Returns:
+            Union[GranianServerConfig, UvicornServerConfig]: Server configuration.
+        """
+        if self.type == ServerType.GRANIAN:
+            return self.granian or GranianServerConfig()
+        else:
+            return self.uvicorn or UvicornServerConfig()
+
+
 class LoggerLevel(StrEnum):
     """
     Available logging levels.
@@ -336,7 +508,7 @@ class AppConfig(BaseModel):
 
     logger: LoggerConfig
     info: FastAPIAppConfig
-    server: UvicornServerConfig
+    server: ServerConfig
     addons: AddonsConfig
     database: DatabaseConfig | None = None
     storage: StorageConfig | None = None

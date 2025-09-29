@@ -27,6 +27,7 @@ anyio==4.9.0
     # via mcp
     # via sse-starlette
     # via starlette
+    # via watchfiles
 asttokens==3.0.0
     # via stack-data
 async-timeout==5.0.1
@@ -47,6 +48,7 @@ cffi==1.17.1
 click==8.2.1
     # via beanie
     # via click-default-group
+    # via granian
     # via typer
     # via uvicorn
 click-default-group==1.2.4
@@ -70,6 +72,8 @@ filetype==1.2.0
 frozenlist==1.6.2
     # via aiohttp
     # via aiosignal
+granian==2.5.4
+    # via papi
 greenlet==3.2.3
     # via sqlalchemy
 h11==0.16.0
@@ -206,6 +210,8 @@ typing-inspection==0.4.1
 uvicorn==0.34.3
     # via mcp
     # via papi
+watchfiles==1.1.0
+    # via granian
 wcwidth==0.2.13
     # via prompt-toolkit
 websockets==15.0.1

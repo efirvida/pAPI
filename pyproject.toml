@@ -16,6 +16,7 @@ dependencies = [
     "fastapi>=0.115.12",
     "fastmcp>=2.5.1",
     "filetype>=1.2.0",
+    "granian[reload]>=2.5.4",
     "ipython>=9.2.0",
     "loguru>=0.7.3",
     "nest-asyncio>=1.6.0",

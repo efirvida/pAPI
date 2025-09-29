@@ -27,6 +27,7 @@ anyio==4.9.0
     # via mcp
     # via sse-starlette
     # via starlette
+    # via watchfiles
 asttokens==3.0.0
     # via stack-data
 async-timeout==5.0.1
@@ -54,6 +55,7 @@ charset-normalizer==3.4.2
 click==8.2.1
     # via beanie
     # via click-default-group
+    # via granian
     # via mkdocs
     # via typer
     # via uvicorn
@@ -85,6 +87,8 @@ frozenlist==1.6.2
     # via aiosignal
 ghp-import==2.1.0
     # via mkdocs
+granian==2.5.4
+    # via papi
 greenlet==3.2.3
     # via sqlalchemy
 griffe==1.7.3
@@ -292,6 +296,8 @@ uvicorn==0.34.3
     # via papi
 watchdog==6.0.0
     # via mkdocs
+watchfiles==1.1.0
+    # via granian
 wcwidth==0.2.13
     # via prompt-toolkit
 websockets==15.0.1
