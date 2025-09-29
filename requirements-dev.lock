@@ -166,6 +166,7 @@ mkdocstrings-python==1.16.12
     # via mkdocstrings
 motor==3.7.1
     # via beanie
+    # via papi
 multidict==6.4.4
     # via aiohttp
     # via python-arango-async

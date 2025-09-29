@@ -28,6 +28,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.41",
     "uvicorn>=0.34.2",
     "pygments>=2.19.2",
+    "motor>=3.7.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.13"
