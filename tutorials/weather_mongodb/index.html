@@ -1,0 +1,1630 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="pAPI – Official Documentación">
+      
+      
+        <meta name="author" content="Eduardo Miguel Fírvida Donestevez">
+      
+      
+        <link rel="canonical" href="https://efirvida.github.io/papi/tutorials/weather_mongodb/">
+      
+      
+        <link rel="prev" href="../hello_world_2/">
+      
+      
+        <link rel="next" href="../weather_sqlalchemy/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+    
+    
+      
+        <title>Weather API (MongoDB) - pAPI – Python/Pluggable API Framework</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#weather-addon-example-mongodb-version" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="pAPI – Python/Pluggable API Framework" class="md-header__button md-logo" aria-label="pAPI – Python/Pluggable API Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            pAPI – Python/Pluggable API Framework
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Weather API (MongoDB)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/router/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="pAPI – Python/Pluggable API Framework" class="md-nav__button md-logo" aria-label="pAPI – Python/Pluggable API Framework" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    pAPI – Python/Pluggable API Framework
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Home
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_1_2" id="__nav_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hello_world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Your first Addon
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hello_world_2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Addon Life cycle
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Weather API (MongoDB)
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Weather API (MongoDB)
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#project-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      🗂️ Project Structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manifestyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      📄 manifest.yaml
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modelspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧬 models.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#routerspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔌 routers.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#crudpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      🌐 crud.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#__init__py" class="md-nav__link">
+    <span class="md-ellipsis">
+      📦 __init__.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚙️ Configuration (config.yaml)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧪 How to Use
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🧪 How to Use">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#start-the-api-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Start the API Server
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-weather-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      📍 Create a Weather Station
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="📍 Create a Weather Station">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Example Response
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list-all-stations" class="md-nav__link">
+    <span class="md-ellipsis">
+      📋 List All Stations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="📋 List All Stations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-response_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Example Response
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-weather-for-a-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      🌡️ Get Weather for a Station
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🌡️ Get Weather for a Station">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-response_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Example Response
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mongodb-shell-access-via-papi-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛠️ MongoDB Shell Access (via pAPI Shell)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🛠️ MongoDB Shell Access (via pAPI Shell)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#available-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔍 Available Documents
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list-stations-in-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧾 List Stations in Shell
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rename-a-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✏️ Rename a Station
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ What's Next?
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../weather_sqlalchemy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Weather API (SQL)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../website/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Static Files
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    pAPI Core
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            pAPI Core
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/router/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Router
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Settings
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/db/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DB
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Models
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#project-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      🗂️ Project Structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manifestyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      📄 manifest.yaml
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modelspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧬 models.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#routerspy" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔌 routers.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#crudpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      🌐 crud.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#__init__py" class="md-nav__link">
+    <span class="md-ellipsis">
+      📦 __init__.py
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-configyaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚙️ Configuration (config.yaml)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧪 How to Use
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🧪 How to Use">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#start-the-api-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Start the API Server
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#create-a-weather-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      📍 Create a Weather Station
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="📍 Create a Weather Station">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Example Response
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list-all-stations" class="md-nav__link">
+    <span class="md-ellipsis">
+      📋 List All Stations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="📋 List All Stations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-response_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Example Response
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-weather-for-a-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      🌡️ Get Weather for a Station
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🌡️ Get Weather for a Station">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-response_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Example Response
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mongodb-shell-access-via-papi-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛠️ MongoDB Shell Access (via pAPI Shell)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🛠️ MongoDB Shell Access (via pAPI Shell)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#available-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔍 Available Documents
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list-stations-in-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧾 List Stations in Shell
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rename-a-station" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✏️ Rename a Station
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ What's Next?
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="weather-addon-example-mongodb-version">🌦️ Weather Addon Example (MongoDB Version)<a class="headerlink" href="#weather-addon-example-mongodb-version" title="Permanent link">&para;</a></h1>
+<p>This addon demonstrates how to build a basic weather data API using <strong>pAPI</strong>, with persistent storage in MongoDB via the integrated <strong>Beanie</strong> ODM.</p>
+<p>Through this example, you will learn how to:</p>
+<ul>
+<li>Integrate MongoDB using <strong>Beanie</strong></li>
+<li>Add Python dependencies to your addon</li>
+<li>Register and list weather stations</li>
+<li>Fetch real-time weather data from an external API</li>
+</ul>
+<blockquote>
+<p>💡 <strong>Bonus</strong>: Learn how to interact with MongoDB using the integrated shell.</p>
+</blockquote>
+<hr />
+<h3 id="project-structure">🗂️ Project Structure<a class="headerlink" href="#project-structure" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1">my_addons/
+</span><span id="__span-0-2">└── weather/
+</span><span id="__span-0-3">    ├── __init__.py
+</span><span id="__span-0-4">    ├── manifest.yaml
+</span><span id="__span-0-5">    ├── models.py
+</span><span id="__span-0-6">    ├── crud.py
+</span><span id="__span-0-7">    └── routers.py
+</span></code></pre></div>
+<hr />
+<h3 id="manifestyaml">📄 <code>manifest.yaml</code><a class="headerlink" href="#manifestyaml" title="Permanent link">&para;</a></h3>
+<p>Declares the addon and its required dependencies:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1"><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weather</span>
+</span><span id="__span-1-2"><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0.0</span>
+</span><span id="__span-1-3"><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Weather data API</span>
+</span><span id="__span-1-4"><span class="nt">author</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Your Name</span>
+</span><span id="__span-1-5">
+</span><span id="__span-1-6"><span class="nt">python_dependencies</span><span class="p">:</span>
+</span><span id="__span-1-7"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;requests&gt;=2.28.0&quot;</span>
+</span></code></pre></div>
+<hr />
+<h3 id="modelspy">🧬 <code>models.py</code><a class="headerlink" href="#modelspy" title="Permanent link">&para;</a></h3>
+<p>Defines the database models for weather stations and readings:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
+</span><span id="__span-2-2"><span class="kn">from</span><span class="w"> </span><span class="nn">beanie</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span><span class="p">,</span> <span class="n">PydanticObjectId</span>
+</span><span id="__span-2-3"><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span>
+</span><span id="__span-2-4">
+</span><span id="__span-2-5">
+</span><span id="__span-2-6"><span class="k">class</span><span class="w"> </span><span class="nc">Location</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+</span><span id="__span-2-7">    <span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span>
+</span><span id="__span-2-8">    <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span>
+</span><span id="__span-2-9">
+</span><span id="__span-2-10">
+</span><span id="__span-2-11"><span class="k">class</span><span class="w"> </span><span class="nc">WeatherStation</span><span class="p">(</span><span class="n">Document</span><span class="p">):</span>
+</span><span id="__span-2-12">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span id="__span-2-13">    <span class="n">location</span><span class="p">:</span> <span class="n">Location</span>
+</span><span id="__span-2-14">    <span class="n">created_at</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+</span><span id="__span-2-15">        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">tz</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
+</span><span id="__span-2-16">    <span class="p">)</span>
+</span><span id="__span-2-17">
+</span><span id="__span-2-18">    <span class="k">class</span><span class="w"> </span><span class="nc">Settings</span><span class="p">:</span>
+</span><span id="__span-2-19">        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;weather_stations&quot;</span>
+</span><span id="__span-2-20">
+</span><span id="__span-2-21">
+</span><span id="__span-2-22"><span class="k">class</span><span class="w"> </span><span class="nc">WeatherReading</span><span class="p">(</span><span class="n">Document</span><span class="p">):</span>
+</span><span id="__span-2-23">    <span class="n">station_id</span><span class="p">:</span> <span class="n">PydanticObjectId</span>
+</span><span id="__span-2-24">    <span class="n">temperature</span><span class="p">:</span> <span class="nb">float</span>
+</span><span id="__span-2-25">    <span class="n">windspeed</span><span class="p">:</span> <span class="nb">float</span>
+</span><span id="__span-2-26">    <span class="n">humidity</span><span class="p">:</span> <span class="nb">float</span>
+</span><span id="__span-2-27">    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">tz</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">))</span>
+</span><span id="__span-2-28">
+</span><span id="__span-2-29">    <span class="k">class</span><span class="w"> </span><span class="nc">Settings</span><span class="p">:</span>
+</span><span id="__span-2-30">        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;weather_readings&quot;</span>
+</span></code></pre></div>
+<hr />
+<h3 id="routerspy">🔌 <code>routers.py</code><a class="headerlink" href="#routerspy" title="Permanent link">&para;</a></h3>
+<p>Handles the REST API endpoints:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">HTTPException</span>
+</span><span id="__span-3-2"><span class="kn">from</span><span class="w"> </span><span class="nn">papi.core.response</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_response</span>
+</span><span id="__span-3-3"><span class="kn">from</span><span class="w"> </span><span class="nn">papi.core.router</span><span class="w"> </span><span class="kn">import</span> <span class="n">RESTRouter</span>
+</span><span id="__span-3-4">
+</span><span id="__span-3-5"><span class="kn">from</span><span class="w"> </span><span class="nn">.crud</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_weather</span>
+</span><span id="__span-3-6"><span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">WeatherReading</span><span class="p">,</span> <span class="n">WeatherStation</span>
+</span><span id="__span-3-7">
+</span><span id="__span-3-8"><span class="n">router</span> <span class="o">=</span> <span class="n">RESTRouter</span><span class="p">()</span>
+</span><span id="__span-3-9">
+</span><span id="__span-3-10">
+</span><span id="__span-3-11"><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/stations&quot;</span><span class="p">)</span>
+</span><span id="__span-3-12"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">list_stations</span><span class="p">():</span>
+</span><span id="__span-3-13"><span class="w">    </span><span class="sd">&quot;&quot;&quot;List all registered weather stations.&quot;&quot;&quot;</span>
+</span><span id="__span-3-14">    <span class="n">stations</span> <span class="o">=</span> <span class="k">await</span> <span class="n">WeatherStation</span><span class="o">.</span><span class="n">find_all</span><span class="p">()</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+</span><span id="__span-3-15">    <span class="k">return</span> <span class="n">create_response</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">stations</span><span class="p">)</span>
+</span><span id="__span-3-16">
+</span><span id="__span-3-17">
+</span><span id="__span-3-18"><span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/stations&quot;</span><span class="p">)</span>
+</span><span id="__span-3-19"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_station</span><span class="p">(</span><span class="n">station</span><span class="p">:</span> <span class="n">WeatherStation</span><span class="p">):</span>
+</span><span id="__span-3-20"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Register a new weather station.&quot;&quot;&quot;</span>
+</span><span id="__span-3-21">    <span class="k">await</span> <span class="n">station</span><span class="o">.</span><span class="n">create</span><span class="p">()</span>
+</span><span id="__span-3-22">    <span class="k">return</span> <span class="n">create_response</span><span class="p">(</span><span class="n">message</span><span class="o">=</span><span class="s2">&quot;Station created successfully&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">station</span><span class="p">)</span>
+</span><span id="__span-3-23">
+</span><span id="__span-3-24">
+</span><span id="__span-3-25"><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/stations/</span><span class="si">{station_id}</span><span class="s2">/weather&quot;</span><span class="p">)</span>
+</span><span id="__span-3-26"><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_current_weather_for_station</span><span class="p">(</span><span class="n">station_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span><span id="__span-3-27"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-3-28"><span class="sd">    Fetch the current weather data for a given station.</span>
+</span><span id="__span-3-29"><span class="sd">    Also saves the reading to the database.</span>
+</span><span id="__span-3-30"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-3-31">    <span class="n">station</span> <span class="o">=</span> <span class="k">await</span> <span class="n">WeatherStation</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">station_id</span><span class="p">)</span>
+</span><span id="__span-3-32">    <span class="k">if</span> <span class="ow">not</span> <span class="n">station</span><span class="p">:</span>
+</span><span id="__span-3-33">        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Station not found&quot;</span><span class="p">)</span>
+</span><span id="__span-3-34">
+</span><span id="__span-3-35">    <span class="n">weather</span> <span class="o">=</span> <span class="n">get_weather</span><span class="p">(</span><span class="n">station</span><span class="o">.</span><span class="n">location</span><span class="o">.</span><span class="n">latitude</span><span class="p">,</span> <span class="n">station</span><span class="o">.</span><span class="n">location</span><span class="o">.</span><span class="n">longitude</span><span class="p">)</span>
+</span><span id="__span-3-36">
+</span><span id="__span-3-37">    <span class="k">await</span> <span class="n">WeatherReading</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="n">station</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="o">**</span><span class="n">weather</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</span><span id="__span-3-38">
+</span><span id="__span-3-39">    <span class="k">return</span> <span class="n">create_response</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">weather</span><span class="p">)</span>
+</span></code></pre></div>
+<hr />
+<h3 id="crudpy">🌐 <code>crud.py</code><a class="headerlink" href="#crudpy" title="Permanent link">&para;</a></h3>
+<p>Fetches weather data using the Open-Meteo public API:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-4-1"><span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+</span><span id="__span-4-2">
+</span><span id="__span-4-3"><span class="k">def</span><span class="w"> </span><span class="nf">get_weather</span><span class="p">(</span><span class="n">latitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">longitude</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-4-4"><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-4-5"><span class="sd">    Fetch current weather data using the Open-Meteo API (no API key required).</span>
+</span><span id="__span-4-6"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-4-7">    <span class="n">url</span> <span class="o">=</span> <span class="p">(</span>
+</span><span id="__span-4-8">        <span class="s2">&quot;https://api.open-meteo.com/v1/forecast&quot;</span>
+</span><span id="__span-4-9">        <span class="sa">f</span><span class="s2">&quot;?latitude=</span><span class="si">{</span><span class="n">latitude</span><span class="si">}</span><span class="s2">&amp;longitude=</span><span class="si">{</span><span class="n">longitude</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-4-10">        <span class="s2">&quot;&amp;current=temperature_2m,wind_speed_10m,relative_humidity_2m&quot;</span>
+</span><span id="__span-4-11">    <span class="p">)</span>
+</span><span id="__span-4-12">
+</span><span id="__span-4-13">    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-4-14">        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-4-15">        <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+</span><span id="__span-4-16">        <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+</span><span id="__span-4-17">
+</span><span id="__span-4-18">        <span class="n">current</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;current&quot;</span><span class="p">)</span>
+</span><span id="__span-4-19">        <span class="k">if</span> <span class="ow">not</span> <span class="n">current</span><span class="p">:</span>
+</span><span id="__span-4-20">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Missing &#39;current&#39; field in API response&quot;</span><span class="p">)</span>
+</span><span id="__span-4-21">
+</span><span id="__span-4-22">        <span class="k">return</span> <span class="p">{</span>
+</span><span id="__span-4-23">            <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="n">current</span><span class="p">[</span><span class="s2">&quot;temperature_2m&quot;</span><span class="p">],</span>
+</span><span id="__span-4-24">            <span class="s2">&quot;windspeed&quot;</span><span class="p">:</span> <span class="n">current</span><span class="p">[</span><span class="s2">&quot;wind_speed_10m&quot;</span><span class="p">],</span>
+</span><span id="__span-4-25">            <span class="s2">&quot;humidity&quot;</span><span class="p">:</span> <span class="n">current</span><span class="p">[</span><span class="s2">&quot;relative_humidity_2m&quot;</span><span class="p">]</span>
+</span><span id="__span-4-26">        <span class="p">}</span>
+</span><span id="__span-4-27">
+</span><span id="__span-4-28">    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-4-29">        <span class="k">return</span> <span class="p">{</span>
+</span><span id="__span-4-30">            <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-4-31">            <span class="s2">&quot;windspeed&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-4-32">            <span class="s2">&quot;humidity&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-4-33">            <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+</span><span id="__span-4-34">        <span class="p">}</span>
+</span></code></pre></div>
+<hr />
+<h3 id="__init__py">📦 <code>__init__.py</code><a class="headerlink" href="#__init__py" title="Permanent link">&para;</a></h3>
+<p>This file registers your addon so it can be discovered and loaded by <strong>pAPI</strong>.</p>
+<p>It also registers the <strong>Beanie documents</strong> so they are initialized with the MongoDB connection during pAPI startup.</p>
+<div class="highlight"><pre><span></span><code><span id="__span-5-1"><span class="kn">from</span><span class="w"> </span><span class="nn">.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">WeatherReading</span><span class="p">,</span> <span class="n">WeatherStation</span>
+</span><span id="__span-5-2"><span class="kn">from</span><span class="w"> </span><span class="nn">.router</span><span class="w"> </span><span class="kn">import</span> <span class="n">router</span>
+</span><span id="__span-5-3">
+</span><span id="__span-5-4"><span class="c1"># Register the API router and Beanie documents for MongoDB</span>
+</span><span id="__span-5-5"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-5-6">    <span class="s2">&quot;router&quot;</span><span class="p">,</span>              <span class="c1"># Registers the API routes</span>
+</span><span id="__span-5-7">    <span class="s2">&quot;WeatherStation&quot;</span><span class="p">,</span>      <span class="c1"># Registers the weather station document</span>
+</span><span id="__span-5-8">    <span class="s2">&quot;WeatherReading&quot;</span>       <span class="c1"># Registers the weather reading document</span>
+</span><span id="__span-5-9"><span class="p">]</span>
+</span></code></pre></div>
+<hr />
+<h3 id="configuration-configyaml">⚙️ Configuration (<code>config.yaml</code>)<a class="headerlink" href="#configuration-configyaml" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1"><span class="c1"># base configuration check the hello world example</span>
+</span><span id="__span-6-2"><span class="nn">...</span><span class="w"> </span>
+</span><span id="__span-6-3">
+</span><span id="__span-6-4"><span class="c1"># MongoDB connection settings</span>
+</span><span id="__span-6-5"><span class="nt">database</span><span class="p">:</span>
+</span><span id="__span-6-6"><span class="w">  </span><span class="nt">mongodb_uri</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;mongodb://root:example@localhost:27017/weather_db?authSource=admin&quot;</span>
+</span><span id="__span-6-7">
+</span><span id="__span-6-8"><span class="c1"># Enable the weather addon</span>
+</span><span id="__span-6-9"><span class="nt">addons</span><span class="p">:</span>
+</span><span id="__span-6-10"><span class="w">  </span><span class="nt">extra_addons_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;my_addons&quot;</span>
+</span><span id="__span-6-11"><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span>
+</span><span id="__span-6-12"><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">weather</span>
+</span></code></pre></div>
+<hr />
+<h2 id="how-to-use">🧪 How to Use<a class="headerlink" href="#how-to-use" title="Permanent link">&para;</a></h2>
+<h3 id="start-the-api-server">🚀 Start the API Server<a class="headerlink" href="#start-the-api-server" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-7-1">rye<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>papi/cli.py<span class="w"> </span>webserver
+</span></code></pre></div>
+<hr />
+<h3 id="create-a-weather-station">📍 Create a Weather Station<a class="headerlink" href="#create-a-weather-station" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-8-1">curl<span class="w"> </span>-X<span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-2"><span class="w">  </span><span class="s1">&#39;http://localhost:8000/stations&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-3"><span class="w">  </span>-H<span class="w"> </span><span class="s1">&#39;accept: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-4"><span class="w">  </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-5"><span class="w">  </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+</span><span id="__span-8-6"><span class="s1">  &quot;name&quot;: &quot;Santa Clara, Cuba&quot;,</span>
+</span><span id="__span-8-7"><span class="s1">  &quot;location&quot;: {</span>
+</span><span id="__span-8-8"><span class="s1">    &quot;latitude&quot;: 22.4067,</span>
+</span><span id="__span-8-9"><span class="s1">    &quot;longitude&quot;: -79.9531</span>
+</span><span id="__span-8-10"><span class="s1">  }</span>
+</span><span id="__span-8-11"><span class="s1">}&#39;</span>
+</span></code></pre></div>
+<h4 id="example-response">✅ Example Response<a class="headerlink" href="#example-response" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span id="__span-9-1"><span class="p">{</span>
+</span><span id="__span-9-2"><span class="w">  </span><span class="nt">&quot;success&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span id="__span-9-3"><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Station created successfully&quot;</span><span class="p">,</span>
+</span><span id="__span-9-4"><span class="w">  </span><span class="nt">&quot;data&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-5"><span class="w">    </span><span class="nt">&quot;_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;684da177ebcda212e2ce8dac&quot;</span><span class="p">,</span>
+</span><span id="__span-9-6"><span class="w">    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Santa Clara, Cuba&quot;</span><span class="p">,</span>
+</span><span id="__span-9-7"><span class="w">    </span><span class="nt">&quot;location&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-8"><span class="w">      </span><span class="nt">&quot;latitude&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">22.4067</span><span class="p">,</span>
+</span><span id="__span-9-9"><span class="w">      </span><span class="nt">&quot;longitude&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-79.9531</span>
+</span><span id="__span-9-10"><span class="w">    </span><span class="p">},</span>
+</span><span id="__span-9-11"><span class="w">    </span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-06-14T16:21:11.352782Z&quot;</span>
+</span><span id="__span-9-12"><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-9-13"><span class="w">  </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-9-14"><span class="w">  </span><span class="nt">&quot;meta&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-9-15"><span class="p">}</span>
+</span></code></pre></div>
+<hr />
+<h3 id="list-all-stations">📋 List All Stations<a class="headerlink" href="#list-all-stations" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-10-1">curl<span class="w"> </span>-X<span class="w"> </span><span class="s1">&#39;GET&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-2"><span class="w">  </span><span class="s1">&#39;http://localhost:8000/stations&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-3"><span class="w">  </span>-H<span class="w"> </span><span class="s1">&#39;accept: application/json&#39;</span>
+</span></code></pre></div>
+<h4 id="example-response_1">✅ Example Response<a class="headerlink" href="#example-response_1" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span id="__span-11-1"><span class="p">{</span>
+</span><span id="__span-11-2"><span class="w">  </span><span class="nt">&quot;success&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span id="__span-11-3"><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-11-4"><span class="w">  </span><span class="nt">&quot;data&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-11-5"><span class="w">    </span><span class="p">{</span>
+</span><span id="__span-11-6"><span class="w">      </span><span class="nt">&quot;_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;684daa34dc94122d9d84bac9&quot;</span><span class="p">,</span>
+</span><span id="__span-11-7"><span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Santa Clara, Cuba&quot;</span><span class="p">,</span>
+</span><span id="__span-11-8"><span class="w">      </span><span class="nt">&quot;location&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-11-9"><span class="w">        </span><span class="nt">&quot;latitude&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">22.4067</span><span class="p">,</span>
+</span><span id="__span-11-10"><span class="w">        </span><span class="nt">&quot;longitude&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-79.9531</span>
+</span><span id="__span-11-11"><span class="w">      </span><span class="p">},</span>
+</span><span id="__span-11-12"><span class="w">      </span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-06-14T16:58:28.540000&quot;</span>
+</span><span id="__span-11-13"><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-11-14"><span class="w">  </span><span class="p">],</span>
+</span><span id="__span-11-15"><span class="w">  </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-11-16"><span class="w">  </span><span class="nt">&quot;meta&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-11-17"><span class="w">    </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2025-06-14T17:17:01+00:00Z&quot;</span><span class="p">,</span>
+</span><span id="__span-11-18"><span class="w">    </span><span class="nt">&quot;requestId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;888ecf22-ea67-4f37-87e1-c13d6f32cfea&quot;</span>
+</span><span id="__span-11-19"><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-11-20"><span class="p">}</span>
+</span></code></pre></div>
+<hr />
+<h3 id="get-weather-for-a-station">🌡️ Get Weather for a Station<a class="headerlink" href="#get-weather-for-a-station" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-12-1">curl<span class="w"> </span>-X<span class="w"> </span><span class="s1">&#39;GET&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-2"><span class="w">  </span><span class="s1">&#39;http://localhost:8000/stations/684da177ebcda212e2ce8dac/weather&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-12-3"><span class="w">  </span>-H<span class="w"> </span><span class="s1">&#39;accept: application/json&#39;</span><span class="w"> </span>
+</span></code></pre></div>
+<h4 id="example-response_2">✅ Example Response<a class="headerlink" href="#example-response_2" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span id="__span-13-1"><span class="p">{</span>
+</span><span id="__span-13-2"><span class="w">  </span><span class="nt">&quot;success&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span id="__span-13-3"><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-13-4"><span class="w">  </span><span class="nt">&quot;data&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-13-5"><span class="w">    </span><span class="nt">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">31.2</span><span class="p">,</span>
+</span><span id="__span-13-6"><span class="w">    </span><span class="nt">&quot;windspeed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">18.7</span><span class="p">,</span>
+</span><span id="__span-13-7"><span class="w">    </span><span class="nt">&quot;humidity&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">56</span>
+</span><span id="__span-13-8"><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-13-9"><span class="w">  </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+</span><span id="__span-13-10"><span class="w">  </span><span class="nt">&quot;meta&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-13-11"><span class="p">}</span>
+</span></code></pre></div>
+<hr />
+<h2 id="mongodb-shell-access-via-papi-shell">🛠️ MongoDB Shell Access (via pAPI Shell)<a class="headerlink" href="#mongodb-shell-access-via-papi-shell" title="Permanent link">&para;</a></h2>
+<p>Access the MongoDB shell:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-14-1">rye<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>papi/cli.py<span class="w"> </span>shell
+</span></code></pre></div>
+<h3 id="available-documents">🔍 Available Documents<a class="headerlink" href="#available-documents" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-15-1"><span class="n">In</span> <span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">mongo_documents</span>
+</span><span id="__span-15-2"><span class="n">Out</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+</span><span id="__span-15-3"><span class="p">{</span>
+</span><span id="__span-15-4">  <span class="s1">&#39;WeatherStation&#39;</span><span class="p">:</span> <span class="n">weather</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">WeatherStation</span><span class="p">,</span>
+</span><span id="__span-15-5">  <span class="s1">&#39;WeatherReading&#39;</span><span class="p">:</span> <span class="n">weather</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">WeatherReading</span>
+</span><span id="__span-15-6"><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="list-stations-in-shell">🧾 List Stations in Shell<a class="headerlink" href="#list-stations-in-shell" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-16-1"><span class="n">In</span> <span class="p">[</span><span class="mi">2</span><span class="p">]:</span> <span class="k">await</span> <span class="n">mongo_documents</span><span class="p">[</span><span class="s2">&quot;WeatherStation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">find</span><span class="p">()</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
+</span></code></pre></div>
+<h3 id="rename-a-station">✏️ Rename a Station<a class="headerlink" href="#rename-a-station" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-17-1"><span class="n">In</span> <span class="p">[</span><span class="mi">3</span><span class="p">]:</span> <span class="kn">from</span><span class="w"> </span><span class="nn">beanie</span><span class="w"> </span><span class="kn">import</span> <span class="n">BeanieObjectId</span> <span class="k">as</span> <span class="n">ObjectId</span>
+</span><span id="__span-17-2"><span class="n">In</span> <span class="p">[</span><span class="mi">4</span><span class="p">]:</span> <span class="n">station</span> <span class="o">=</span> <span class="k">await</span> <span class="n">mongo_documents</span><span class="p">[</span><span class="s2">&quot;WeatherStation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ObjectId</span><span class="p">(</span><span class="s1">&#39;684daa34dc94122d9d84bac9&#39;</span><span class="p">))</span>
+</span><span id="__span-17-3"><span class="n">In</span> <span class="p">[</span><span class="mi">5</span><span class="p">]:</span> <span class="n">station</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;New Santa Clara&quot;</span>
+</span><span id="__span-17-4"><span class="n">In</span> <span class="p">[</span><span class="mi">6</span><span class="p">]:</span> <span class="k">await</span> <span class="n">station</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</span></code></pre></div>
+<p>Confirm the change:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-18-1"><span class="n">In</span> <span class="p">[</span><span class="mi">7</span><span class="p">]:</span> <span class="k">await</span> <span class="n">mongo_documents</span><span class="p">[</span><span class="s2">&quot;WeatherStation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ObjectId</span><span class="p">(</span><span class="s1">&#39;684daa34dc94122d9d84bac9&#39;</span><span class="p">))</span>
+</span><span id="__span-18-2"><span class="n">Out</span><span class="p">[</span><span class="mi">7</span><span class="p">]:</span> <span class="n">WeatherStation</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;New Santa Clara&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="whats-next">✅ What's Next?<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Add SQL models using <strong>SQLAlchemy</strong></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../hello_world_2/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Addon Life cycle">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Addon Life cycle
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../weather_sqlalchemy/" class="md-footer__link md-footer__link--next" aria-label="Next: Weather API (SQL)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Weather API (SQL)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      
+    
+  </body>
+</html>
