@@ -1,0 +1,47 @@
+# Example configuration file for pAPI
+# Copy this file to config.yaml and modify as needed
+
+# Application settings
+name: "pAPI Example"
+version: "1.0.0"
+debug: true
+
+# Server configuration - using granian as default
+server:
+  type: "granian"  # Options: "granian" (default) or "uvicorn"
+  host: "0.0.0.0"
+  port: 8000
+  workers: 2
+  reload: true
+  log_level: "info"
+
+# Addons configuration
+addons:
+  # List of enabled addons
+  enabled: []  # Example: ["hello_world", "weather"]
+  
+  # Optional: specify paths for custom addons
+  paths: []
+
+# Database configuration (optional)
+# database:
+#   url: "sqlite:///./data/app.db"
+#   echo: false
+
+# Redis configuration (optional)  
+# redis:
+#   url: "redis://localhost:6379"
+#   decode_responses: true
+
+# API configuration
+api:
+  title: "pAPI"
+  description: "A FastAPI-based API framework"
+  version: "1.0.0"
+  docs_url: "/docs"
+  redoc_url: "/redoc"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
