@@ -520,6 +520,8 @@ def webserver(server: str | None = None) -> None:
 
 def _run_granian_server(app: FastAPI, config: GranianServerConfig) -> None:
     """Run the application using Granian server."""
+    import os
+    import signal
     import subprocess
     import sys
 
@@ -555,8 +557,72 @@ def _run_granian_server(app: FastAPI, config: GranianServerConfig) -> None:
 
         logger.debug(f"Granian command: {' '.join(cmd)}")
 
-        # Execute granian
-        subprocess.run(cmd, check=True)
+        # Start the granian process with new process group
+        process = subprocess.Popen(cmd, preexec_fn=os.setsid)
+
+        # Flag to prevent multiple shutdowns
+        shutdown_initiated = False
+
+        # Set up signal handling for graceful shutdown
+        def signal_handler(signum, frame):
+            nonlocal shutdown_initiated
+            if shutdown_initiated:
+                logger.debug(
+                    f"Signal {signum} received but shutdown already in progress"
+                )
+                return
+
+            shutdown_initiated = True
+            logger.info(f"Received signal {signum}, shutting down Granian server...")
+
+            try:
+                # Send SIGTERM to the entire process group to ensure all workers are terminated
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+
+                # Give it some time to shut down gracefully
+                try:
+                    process.wait(timeout=5)
+                    logger.info("Granian server shut down gracefully")
+                except subprocess.TimeoutExpired:
+                    logger.debug(
+                        "Granian server taking longer to shut down, checking process status..."
+                    )
+                    # Check if process is still running before forcing termination
+                    if process.poll() is None:
+                        logger.info("Forcing termination of Granian server...")
+                        try:
+                            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                            process.wait(timeout=3)
+                            logger.debug("Granian server terminated successfully")
+                        except (subprocess.TimeoutExpired, ProcessLookupError, OSError):
+                            # Process might have already terminated, this is normal
+                            logger.debug("Process cleanup completed")
+                    else:
+                        logger.debug("Process already terminated")
+
+            except (ProcessLookupError, OSError):
+                # Process was already terminated or doesn't exist - this is normal
+                logger.debug("Process already terminated or cleaned up")
+            except Exception as e:
+                logger.warning(f"Unexpected error during shutdown: {e}")
+
+            sys.exit(0)
+
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+        signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
+
+        # Wait for the process to complete
+        try:
+            return_code = process.wait()
+            if return_code != 0:
+                logger.error(f"Granian process exited with code {return_code}")
+                sys.exit(return_code)
+        except KeyboardInterrupt:
+            # This should be handled by the signal handler, but just in case
+            if not shutdown_initiated:
+                logger.info("Keyboard interrupt received, shutting down...")
+                signal_handler(signal.SIGINT, None)
 
     except ImportError:
         logger.critical("Granian is not installed. Install with: pip install granian")
