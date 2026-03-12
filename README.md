@@ -4,6 +4,8 @@
 
 # pAPI – Python/Pluggable API Framework
 
+[![MCPAmpel](https://img.shields.io/endpoint?url=https://mcpampel.com/badge/efirvida/papi.json)](https://mcpampel.com/repo/efirvida/papi)
+
 **pAPI** is a modular micro-framework built on top of FastAPI for composing scalable, tool-oriented APIs. It extends FastAPI’s routing system with native support for modular service architectures, app discovery, and LLM tooling.
 
 > 📚 **Documentation**: Full documentation is currently a work in progress (WIP).  
